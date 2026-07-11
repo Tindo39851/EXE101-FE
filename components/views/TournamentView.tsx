@@ -1,5 +1,6 @@
 import React from "react";
 import { useAppState } from "@/hooks/use-app-state";
+import { money } from "@/lib/data/constants";
 
 export function TournamentView() {
   const {
@@ -9,7 +10,8 @@ export function TournamentView() {
     setSelectedTour,
     tourTab,
     setTourTab,
-    notify
+    notify,
+    buyCart
   } = useAppState();
 
   const activeTour = tournaments.find(t => t.id === selectedTour) || tournaments[0];
@@ -180,12 +182,26 @@ export function TournamentView() {
 
             {/* Actions row */}
             <div className="w-full pt-5 flex items-center gap-3">
-              <button
-                onClick={() => notify(`Registration initiated for ${activeTour.title}.`)}
-                className="px-6 py-2.5 bg-fuchsia-500 text-black text-xs font-bold font-mono tracking-widest uppercase hover:bg-fuchsia-400 transition shadow-[0_0_12px_rgba(255,0,255,0.4)] cursor-pointer border-none"
-              >
-                REGISTER TEAM
-              </button>
+              {activeTour.status === "OPEN" ? (
+                <button
+                  onClick={() => buyCart({
+                    id: `tour-${activeTour.id}`,
+                    name: `Slot: ${activeTour.title}`,
+                    price: activeTour.entryFee,
+                    desc: `Entry slot fee for ${activeTour.title}. 25% hosting fee included.`
+                  })}
+                  className="px-6 py-2.5 bg-fuchsia-500 text-black text-xs font-bold font-mono tracking-widest uppercase hover:bg-fuchsia-400 transition shadow-[0_0_12px_rgba(255,0,255,0.4)] cursor-pointer border-none"
+                >
+                  JOIN TOURNAMENT ({money.format(activeTour.entryFee)})
+                </button>
+              ) : (
+                <button
+                  disabled
+                  className="px-6 py-2.5 bg-slate-800 text-slate-500 text-xs font-bold font-mono tracking-widest uppercase cursor-not-allowed border-none"
+                >
+                  REGISTRATION CLOSED
+                </button>
+              )}
               <button
                 onClick={() => notify("Connecting to spectating viewport feeds...")}
                 className="px-6 py-2.5 outline outline-1 outline-offset-[-1px] outline-cyan-400/40 hover:outline-cyan-400 text-cyan-400 text-xs font-bold font-mono tracking-widest uppercase transition cursor-pointer"

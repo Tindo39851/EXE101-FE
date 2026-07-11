@@ -18,6 +18,7 @@ export const initialTournaments: Tournament[] = [
       ],
       finals: [{ t1: "TBD", s1: "", t2: "TBD", s2: "" }],
     },
+    entryFee: 15,
   },
   {
     id: "t2", status: "OPEN", mode: "5v5 Single Elim",
@@ -36,6 +37,7 @@ export const initialTournaments: Tournament[] = [
       ],
       finals: [{ t1: "TBD", s1: "", t2: "TBD", s2: "" }],
     },
+    entryFee: 10,
   },
   {
     id: "t3", status: "OPEN", mode: "Squad Battle",
@@ -54,6 +56,7 @@ export const initialTournaments: Tournament[] = [
       ],
       finals: [{ t1: "TBD", s1: "", t2: "TBD", s2: "" }],
     },
+    entryFee: 20,
   },
   {
     id: "t4", status: "LIVE", mode: "5v5 Swiss",
@@ -72,18 +75,21 @@ export const initialTournaments: Tournament[] = [
       ],
       finals: [{ t1: "TBD", s1: "", t2: "TBD", s2: "" }],
     },
+    entryFee: 5,
   },
   {
     id: "t5", status: "UPCOMING", mode: "Solos / Squads",
     title: "FREEFIRE CHAMPIONS CUP", game: "Freefire",
     prize: "$30,000", timer: "47:12:01", teams: "512", format: "Squads", startsIn: "2d 23h",
     bracket: null,
+    entryFee: 8,
   },
   {
     id: "t6", status: "UPCOMING", mode: "5v5 GSL Groups",
     title: "AOV SYNDICATE WARS", game: "Arena of Valor",
     prize: "$200,000", timer: "71:59:56", teams: "16", format: "5v5", startsIn: "3d",
     bracket: null,
+    entryFee: 50,
   },
   {
     id: "t7", status: "OPEN", mode: "Duo Clash",
@@ -102,6 +108,7 @@ export const initialTournaments: Tournament[] = [
       ],
       finals: [{ t1: "TBD", s1: "", t2: "TBD", s2: "" }],
     },
+    entryFee: 4,
   },
   {
     id: "t8", status: "OPEN", mode: "5v5 Round Robin",
@@ -120,5 +127,6 @@ export const initialTournaments: Tournament[] = [
       ],
       finals: [{ t1: "TBD", s1: "", t2: "TBD", s2: "" }],
     },
+    entryFee: 2,
   },
 ];

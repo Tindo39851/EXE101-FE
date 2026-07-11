@@ -164,6 +164,7 @@ export type Tournament = {
   format: string;
   startsIn: string;
   bracket: TournamentBracket;
+  entryFee: number;
 };
 
 // ─── App State ────────────────────────────────────────────────────────────────
