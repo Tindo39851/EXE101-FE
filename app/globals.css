@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 199 73% 3%;
+  --foreground: 190 100% 96%;
+  --card: 204 73% 4%;
+  --card-foreground: 190 100% 96%;
+  --border: 184 100% 38%;
+  --input: 184 100% 28%;
+  --ring: 184 100% 50%;
+  --primary: 184 100% 50%;
+  --primary-foreground: 192 100% 4%;
+  --secondary: 205 56% 10%;
+  --secondary-foreground: 184 100% 50%;
+  --muted: 207 40% 13%;
+  --muted-foreground: 207 22% 58%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background:
+    linear-gradient(rgba(0, 246, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 246, 255, 0.1) 1px, transparent 1px),
+    radial-gradient(circle at 50% 35%, rgba(255, 0, 223, 0.13), transparent 24rem),
+    hsl(var(--background));
+  background-size: 40px 40px, 40px 40px, auto, auto;
+  color: hsl(var(--foreground));
+}
+
+body::after {
+  content: "";
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  opacity: 0.12;
+  background: repeating-linear-gradient(180deg, transparent 0, transparent 5px, rgba(255, 255, 255, 0.18) 6px);
+}
+
+input,
+select,
+textarea {
+  border: 1px solid rgba(0, 246, 255, 0.45);
+  background: rgba(0, 20, 27, 0.78);
+  color: hsl(var(--foreground));
+  outline: none;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  box-shadow: 0 0 16px rgba(0, 246, 255, 0.7), 0 0 42px rgba(0, 246, 255, 0.22);
+}
+
+.tech-title {
+  color: #edffff;
+  text-shadow: 0 0 12px #fff, 0 0 24px #00f6ff, 0 0 70px rgba(0, 246, 255, 0.65);
+}
+
+.section-code {
+  color: #00f6ff;
+  text-transform: uppercase;
+  font-size: 9px;
+  letter-spacing: 0.22em;
+}
+
+.cyan-glow {
+  box-shadow: 0 0 16px rgba(0, 246, 255, 0.7), 0 0 42px rgba(0, 246, 255, 0.22);
+}
+
+.magenta-glow {
+  box-shadow: 0 0 18px rgba(255, 0, 223, 0.7), 0 0 44px rgba(255, 0, 223, 0.24);
+}
