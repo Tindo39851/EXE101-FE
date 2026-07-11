@@ -11,7 +11,8 @@ export function TournamentView() {
     tourTab,
     setTourTab,
     notify,
-    buyCart
+    buyCart,
+    state
   } = useAppState();
 
   const activeTour = tournaments.find(t => t.id === selectedTour) || tournaments[0];
@@ -76,7 +77,8 @@ export function TournamentView() {
             {filteredTours.map((t) => {
               const active = selectedTour === t.id;
               const statusColor = t.status === "LIVE" ? "text-fuchsia-500 border-fuchsia-500/50 bg-fuchsia-500/20" : t.status === "OPEN" ? "text-cyan-400 border-cyan-400/40 bg-cyan-400/10" : "text-yellow-400 border-yellow-400/40 bg-yellow-400/10";
-              
+              const registered = state.transactions.some(tx => tx.item === `Slot: ${t.title}`);
+
               return (
                 <div
                   key={t.id}
@@ -88,8 +90,15 @@ export function TournamentView() {
                   }`}
                 >
                   <div className="w-full flex justify-between items-center">
-                    <div className={`px-2 py-[2.40px] border outline outline-1 outline-offset-[-1px] ${statusColor} text-[8.32px] font-mono uppercase`}>
-                      {t.status === "LIVE" ? "● LIVE" : t.status}
+                    <div className="flex gap-2">
+                      <div className={`px-2 py-[2.40px] border outline outline-1 outline-offset-[-1px] ${statusColor} text-[8.32px] font-mono uppercase`}>
+                        {t.status === "LIVE" ? "● LIVE" : t.status}
+                      </div>
+                      {registered && (
+                        <div className="px-2 py-[2.40px] border border-emerald-400/40 bg-emerald-400/10 text-emerald-400 outline outline-1 outline-offset-[-1px] outline-emerald-400/30 text-[8.32px] font-mono uppercase font-bold">
+                          ✓ REGISTERED
+                        </div>
+                      )}
                     </div>
                     <span className="text-slate-500 text-[8.80px] font-mono">
                       {t.mode}
@@ -183,17 +192,26 @@ export function TournamentView() {
             {/* Actions row */}
             <div className="w-full pt-5 flex items-center gap-3">
               {activeTour.status === "OPEN" ? (
-                <button
-                  onClick={() => buyCart({
-                    id: `tour-${activeTour.id}`,
-                    name: `Slot: ${activeTour.title}`,
-                    price: activeTour.entryFee,
-                    desc: `Entry slot fee for ${activeTour.title}. 25% hosting fee included.`
-                  })}
-                  className="px-6 py-2.5 bg-fuchsia-500 text-black text-xs font-bold font-mono tracking-widest uppercase hover:bg-fuchsia-400 transition shadow-[0_0_12px_rgba(255,0,255,0.4)] cursor-pointer border-none"
-                >
-                  JOIN TOURNAMENT ({money.format(activeTour.entryFee)})
-                </button>
+                state.transactions.some(tx => tx.item === `Slot: ${activeTour.title}`) ? (
+                  <button
+                    disabled
+                    className="px-6 py-2.5 bg-emerald-500/10 border border-emerald-400 text-emerald-400 text-xs font-bold font-mono tracking-widest uppercase cursor-not-allowed"
+                  >
+                    ✓ YOU ARE REGISTERED
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => buyCart({
+                      id: `tour-${activeTour.id}`,
+                      name: `Slot: ${activeTour.title}`,
+                      price: activeTour.entryFee,
+                      desc: `Entry slot fee for ${activeTour.title}. 25% hosting fee included.`
+                    })}
+                    className="px-6 py-2.5 bg-fuchsia-500 text-black text-xs font-bold font-mono tracking-widest uppercase hover:bg-fuchsia-400 transition shadow-[0_0_12px_rgba(255,0,255,0.4)] cursor-pointer border-none"
+                  >
+                    JOIN TOURNAMENT ({money.format(activeTour.entryFee)})
+                  </button>
+                )
               ) : (
                 <button
                   disabled
