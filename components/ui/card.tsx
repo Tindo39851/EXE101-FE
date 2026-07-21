@@ -4,10 +4,7 @@ import { cn } from "@/lib/utils";
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn(
-        "border border-cyan-300/20 bg-slate-950/85 shadow-[inset_0_0_0_1px_rgba(0,246,255,.03)] transition hover:border-cyan-300/45",
-        className,
-      )}
+      className={cn("cyber-card cyber-corners", className)}
       {...props}
     />
   );

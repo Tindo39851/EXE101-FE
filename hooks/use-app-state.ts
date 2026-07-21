@@ -1,11 +1,17 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { AppState, CartItem, Role, Rank, View, NotificationItem, Post, Sponsor, Transaction, User } from "@/lib/types";
 import { games, ranks, goals, money, calculateTrustScore } from "@/lib/data/constants";
-import { seedState, cloneSeed } from "@/lib/data/seed-state";
 import { clans } from "@/lib/data/clans";
 import { listings } from "@/lib/data/listings";
 import { initialIncidents, initialBrokers } from "@/lib/data/incidents";
 import { initialTournaments } from "@/lib/data/tournaments";
+
+// Import new Zustand stores
+import { useAuthStore } from "@/lib/stores/auth.store";
+import { useUIStore } from "@/lib/stores/ui.store";
+import { useCheckoutStore } from "@/lib/stores/checkout.store";
+import { useFiltersStore } from "@/lib/stores/filters.store";
+import { getMockDb, saveMockDb } from "@/lib/api/adapters/mock";
 
 // Define the full context state interface
 export interface AppContextType {
@@ -161,45 +167,26 @@ export interface AppContextType {
 export const AppStateContext = createContext<AppContextType | undefined>(undefined);
 
 export function useAppStateInternal(): AppContextType {
-  const [view, setView] = useState<View>("overview");
-  const [state, setState] = useState<AppState>(() => cloneSeed());
   const [hydrated, setHydrated] = useState(false);
-  const [toast, setToast] = useState("");
+  const [dbState, setDbState] = useState<AppState>(() => getMockDb());
+
+  // Zustand Store mappings
+  const auth = useAuthStore();
+  const ui = useUIStore();
+  const checkout = useCheckoutStore();
+  const filters = useFiltersStore();
+
+  // Local draft states to preserve legacy form behaviors
   const [profileDraft, setProfileDraft] = useState({ name: "", game: games[0], rank: "Diamond" as Rank, goal: goals[0] });
   const [postDraft, setPostDraft] = useState({ content: "", type: "highlight" });
-  const [paymentMethod, setPaymentMethod] = useState("GameTrust Wallet");
   const [showEditProfile, setShowEditProfile] = useState(false);
-  const [checkoutStep, setCheckoutStep] = useState(1);
-  const [lastPurchased, setLastPurchased] = useState<CartItem | null>(null);
 
-  const [selectedPayment, setSelectedPayment] = useState<"card" | "crypto" | "escrow">("card");
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardHolder, setCardHolder] = useState("");
-  const [expiryDate, setExpiryDate] = useState("");
-  const [cvv, setCvv] = useState("");
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [showCvv, setShowCvv] = useState(false);
-
-  const [selectedClanId, setSelectedClanId] = useState("c1");
-  const [clanTierFilter, setClanTierFilter] = useState("ALL");
-  const [clanRegionFilter, setClanRegionFilter] = useState("ALL");
-
-  const [joinedClans, setJoinedClans] = useState<string[]>([]);
-
-  const [communityTypeFilter, setCommunityTypeFilter] = useState("ALL");
-  const [communitySortOrder, setCommunitySortOrder] = useState("RECENT");
-  const [communitySearchQuery, setCommunitySearchQuery] = useState("");
-  const [broadcastDraft, setBroadcastDraft] = useState("");
-
-  const [trustTab, setTrustTab] = useState("OVERVIEW");
-  const [incidents, setIncidents] = useState(initialIncidents);
-  const [brokersList, setBrokersList] = useState(initialBrokers);
-
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
+  // Authentication draft states
   const [emailDraft, setEmailDraft] = useState("");
   const [passwordDraft, setPasswordDraft] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
 
+  // SignUp draft states
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
@@ -210,65 +197,171 @@ export function useAppStateInternal(): AppContextType {
   const [signupAgreePolicy, setSignupAgreePolicy] = useState(false);
   const [signupAgreeNews, setSignupAgreeNews] = useState(false);
 
-  const [tourTab, setTourTab] = useState("ALL");
-  const [selectedTour, setSelectedTour] = useState("t1");
+  // Admin/Tournament mock lists sync'd to local mock db
+  const [incidents, setIncidents] = useState(initialIncidents);
+  const [brokersList, setBrokersList] = useState(initialBrokers);
   const [tournaments, setTournaments] = useState(initialTournaments);
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [priceMin, setPriceMin] = useState("");
-  const [priceMax, setPriceMax] = useState("");
-  const [trustSort, setTrustSort] = useState<"none" | "desc" | "asc">("none");
-  const [gameFilter, setGameFilter] = useState("ALL");
+  const [notifFilter, setNotifFilter] = useState<string>("ALL");
+  const [unreadOnly, setUnreadOnly] = useState<boolean>(false);
 
-  // LocalStorage Hydration logic
+  // Hydration sync
   useEffect(() => {
-    const raw = window.localStorage.getItem("gametrust-next-mvp-state");
-    if (raw) {
-      try {
-        const parsed = JSON.parse(raw) as AppState;
-        if (!parsed.notifications) {
-          parsed.notifications = cloneSeed().notifications;
-        }
-        if (!parsed.posts || parsed.posts.length < 14) {
-          parsed.posts = cloneSeed().posts;
-        }
-        setState(parsed);
-      } catch {
-        setState(cloneSeed());
-      }
-    }
+    setDbState(getMockDb());
     setHydrated(true);
   }, []);
 
+  // Sync state between hook local db representation and Zustand
   useEffect(() => {
     if (hydrated) {
-      window.localStorage.setItem("gametrust-next-mvp-state", JSON.stringify(state));
+      const db = getMockDb();
+      auth.setUsers(db.users);
+      ui.setNotifications(db.notifications);
     }
-  }, [hydrated, state]);
+  }, [hydrated]);
 
-  // Computed Values
-  const currentUser = useMemo(() => {
-    return state.users.find((user) => user.id === state.currentUserId) ?? state.users[0];
-  }, [state]);
-
+  // Sync profile draft when current user changes
+  const currentUser = auth.getCurrentUser();
   useEffect(() => {
     setProfileDraft({ name: currentUser.name, game: currentUser.game, rank: currentUser.rank, goal: currentUser.goal });
   }, [currentUser]);
 
+  // Legacy AppState mapping
+  const appState: AppState = useMemo(() => {
+    return {
+      currentUserId: auth.currentUserId,
+      cart: checkout.cart,
+      users: auth.users,
+      posts: dbState.posts,
+      sponsors: dbState.sponsors,
+      transactions: dbState.transactions,
+      notifications: ui.notifications,
+    };
+  }, [auth.currentUserId, checkout.cart, auth.users, dbState.posts, dbState.sponsors, dbState.transactions, ui.notifications]);
+
+  // Actions wrapped to sync with mock DB + notify
+  const updateDbState = (updater: (draft: AppState) => void) => {
+    const current = getMockDb();
+    const copy = JSON.parse(JSON.stringify(current)) as AppState;
+    updater(copy);
+    saveMockDb(copy);
+    setDbState(copy);
+  };
+
+  const switchRole = (role: Role) => {
+    auth.switchRole(role);
+    ui.notify(`Identity switched to ${role}.`);
+  };
+
+  const saveProfile = () => {
+    auth.saveProfile(profileDraft);
+    // Sync into local mock db file state
+    updateDbState((draft) => {
+      const user = draft.users.find((u) => u.id === draft.currentUserId);
+      if (user) {
+        user.name = profileDraft.name.trim() || user.name;
+        user.game = profileDraft.game;
+        user.rank = profileDraft.rank;
+        user.goal = profileDraft.goal;
+        user.trustScore = calculateTrustScore(user);
+      }
+    });
+    ui.notify("Gamer profile saved. Trust Score recalculated.");
+  };
+
+  const publishPost = () => {
+    const content = postDraft.content.trim();
+    if (!content) return;
+    updateDbState((draft) => {
+      draft.posts.unshift({
+        id: `p${Date.now()}`,
+        authorId: draft.currentUserId,
+        type: postDraft.type,
+        content,
+        likes: 0,
+        comments: [],
+        sponsored: false,
+      });
+    });
+    setPostDraft({ content: "", type: "highlight" });
+    ui.notify("Post published to the social feed.");
+  };
+
+  const buyCart = (item: CartItem) => {
+    checkout.buyCart(item);
+  };
+
+  const completeCheckout = () => {
+    checkout.completeCheckout((newTx) => {
+      updateDbState((draft) => {
+        draft.transactions.push(newTx);
+        const user = draft.users.find((u) => u.id === draft.currentUserId) || draft.users[0];
+        if (checkout.cart?.id.includes("premium") || checkout.cart?.id.includes("creator")) {
+          user.premium = true;
+          user.trustScore = calculateTrustScore(user);
+        }
+        if (checkout.cart?.id === "shop-pin") {
+          draft.sponsors.push({
+            id: `s${Date.now()}`,
+            shop: user.name,
+            title: "New pinned shop placement",
+            price: checkout.cart.price,
+            status: "Running",
+          });
+        }
+      });
+      ui.notify("Payment complete. Revenue and admin dashboard updated.");
+    });
+  };
+
+  const publishBroadcast = () => {
+    if (filters.broadcastDraft.trim() === "") {
+      ui.notify("Cannot broadcast empty message.");
+      return;
+    }
+    updateDbState((draft) => {
+      const newPost = {
+        id: `p${draft.posts.length + 100}`,
+        authorId: auth.currentUserId,
+        type: "trade",
+        content: filters.broadcastDraft,
+        likes: 0,
+        comments: [],
+        sponsored: false,
+        game: currentUser.game,
+        authorName: currentUser.name,
+        clanTag: filters.joinedClans.length > 0 ? (clans.find(c => c.id === filters.joinedClans[0])?.tag || "") : "",
+        time: "Just now",
+      };
+      draft.posts.unshift(newPost);
+    });
+    filters.setBroadcastDraft("");
+    ui.notify("Broadcasted message successfully to the network!");
+  };
+
+  const likePost = (postId: string) => {
+    updateDbState((draft) => {
+      const p = draft.posts.find((item) => item.id === postId);
+      if (p) p.likes += 1;
+    });
+    ui.notify("Liked post successfully!");
+  };
+
+  // Computed Values
   const revenue = useMemo(() => {
-    return state.transactions.reduce((sum, tx) => sum + tx.amount, 0);
-  }, [state.transactions]);
+    return dbState.transactions.reduce((sum, tx) => sum + tx.amount, 0);
+  }, [dbState.transactions]);
 
   const engagement = useMemo(() => {
-    return state.posts.reduce((sum, post) => sum + post.likes + post.comments.length, 0);
-  }, [state.posts]);
+    return dbState.posts.reduce((sum, post) => sum + post.likes + post.comments.length, 0);
+  }, [dbState.posts]);
 
   const premiumUsers = useMemo(() => {
-    return state.users.filter((user) => user.premium).length;
-  }, [state.users]);
+    return auth.users.filter((user) => user.premium).length;
+  }, [auth.users]);
 
   const matches = useMemo(() => {
-    return state.users
+    return auth.users
       .filter((candidate) => candidate.id !== currentUser.id && candidate.role !== "admin")
       .map((candidate) => {
         let score = 35;
@@ -279,49 +372,46 @@ export function useAppStateInternal(): AppContextType {
         return { ...candidate, matchScore: Math.min(100, score) };
       })
       .sort((a, b) => b.matchScore - a.matchScore);
-  }, [currentUser, state.users]);
-
-  const [notifFilter, setNotifFilter] = useState<string>("ALL");
-  const [unreadOnly, setUnreadOnly] = useState<boolean>(false);
+  }, [currentUser, auth.users]);
 
   const filteredNotifications = useMemo(() => {
-    let list = state.notifications || [];
+    let list = ui.notifications;
     if (notifFilter !== "ALL") {
-      list = list.filter(n => n.type.toUpperCase() === notifFilter);
+      list = list.filter((n) => n.type.toUpperCase() === notifFilter);
     }
     if (unreadOnly) {
-      list = list.filter(n => n.unread);
+      list = list.filter((n) => n.unread);
     }
     return list;
-  }, [state.notifications, notifFilter, unreadOnly]);
+  }, [ui.notifications, notifFilter, unreadOnly]);
 
   const filteredClans = useMemo(() => {
     return clans.filter((c) => {
-      const matchTier = clanTierFilter === "ALL" || c.tier === clanTierFilter;
-      const matchRegion = clanRegionFilter === "ALL" || c.region === clanRegionFilter;
+      const matchTier = filters.clanTierFilter === "ALL" || c.tier === filters.clanTierFilter;
+      const matchRegion = filters.clanRegionFilter === "ALL" || c.region === filters.clanRegionFilter;
       return matchTier && matchRegion;
     });
-  }, [clanTierFilter, clanRegionFilter]);
+  }, [filters.clanTierFilter, filters.clanRegionFilter]);
 
   const activeClan = useMemo(() => {
-    return clans.find((c) => c.id === selectedClanId) || clans[0];
-  }, [selectedClanId]);
+    return clans.find((c) => c.id === filters.selectedClanId) || clans[0];
+  }, [filters.selectedClanId]);
 
   const filteredPosts = useMemo(() => {
-    let list = [...state.posts];
-    if (communitySearchQuery.trim() !== "") {
-      const q = communitySearchQuery.toLowerCase();
+    let list = [...dbState.posts];
+    if (filters.communitySearchQuery.trim() !== "") {
+      const q = filters.communitySearchQuery.toLowerCase();
       list = list.filter(
-        post =>
+        (post) =>
           post.content.toLowerCase().includes(q) ||
           (post.authorName || "").toLowerCase().includes(q) ||
           (post.game || "").toLowerCase().includes(q)
       );
     }
-    if (communityTypeFilter !== "ALL") {
-      list = list.filter(post => post.type.toUpperCase() === communityTypeFilter.toUpperCase());
+    if (filters.communityTypeFilter !== "ALL") {
+      list = list.filter((post) => post.type.toUpperCase() === filters.communityTypeFilter.toUpperCase());
     }
-    if (communitySortOrder === "RECENT") {
+    if (filters.communitySortOrder === "RECENT") {
       list.sort((a, b) => {
         const numA = parseInt(a.id.replace("p", "")) || 0;
         const numB = parseInt(b.id.replace("p", "")) || 0;
@@ -331,49 +421,49 @@ export function useAppStateInternal(): AppContextType {
       list.sort((a, b) => b.likes - a.likes);
     }
     return list;
-  }, [state.posts, communitySearchQuery, communityTypeFilter, communitySortOrder]);
+  }, [dbState.posts, filters.communitySearchQuery, filters.communityTypeFilter, filters.communitySortOrder]);
 
   const filteredListings = useMemo(() => {
     let list = [...listings];
-    if (gameFilter !== "ALL") {
-      list = list.filter(item => item.title.toLowerCase() === gameFilter.toLowerCase());
+    if (filters.gameFilter !== "ALL") {
+      list = list.filter((item) => item.title.toLowerCase() === filters.gameFilter.toLowerCase());
     }
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      list = list.filter(item => 
-        item.title.toLowerCase().includes(query) || 
-        item.server.toLowerCase().includes(query) || 
+    if (filters.searchQuery.trim()) {
+      const query = filters.searchQuery.toLowerCase();
+      list = list.filter((item) =>
+        item.title.toLowerCase().includes(query) ||
+        item.server.toLowerCase().includes(query) ||
         item.badge.toLowerCase().includes(query)
       );
     }
-    if (priceMin.trim()) {
-      const min = parseFloat(priceMin);
+    if (filters.priceMin.trim()) {
+      const min = parseFloat(filters.priceMin);
       if (!isNaN(min)) {
-        list = list.filter(item => item.price >= min);
+        list = list.filter((item) => item.price >= min);
       }
     }
-    if (priceMax.trim()) {
-      const max = parseFloat(priceMax);
+    if (filters.priceMax.trim()) {
+      const max = parseFloat(filters.priceMax);
       if (!isNaN(max)) {
-        list = list.filter(item => item.price <= max);
+        list = list.filter((item) => item.price <= max);
       }
     }
-    if (trustSort === "desc") {
+    if (filters.trustSort === "desc") {
       list.sort((a, b) => parseFloat(b.trust) - parseFloat(a.trust));
-    } else if (trustSort === "asc") {
+    } else if (filters.trustSort === "asc") {
       list.sort((a, b) => parseFloat(a.trust) - parseFloat(b.trust));
     }
     return list;
-  }, [gameFilter, searchQuery, priceMin, priceMax, trustSort]);
+  }, [filters.gameFilter, filters.searchQuery, filters.priceMin, filters.priceMax, filters.trustSort]);
 
   const groupedNotifs = useMemo(() => {
     const groups: Record<string, NotificationItem[]> = {
       "TODAY": [],
       "YESTERDAY": [],
       "2 DAYS AGO": [],
-      "3 DAYS AGO": []
+      "3 DAYS AGO": [],
     };
-    filteredNotifications.forEach(n => {
+    filteredNotifications.forEach((n) => {
       if (n.time.includes("m") || n.time.includes("h")) {
         groups["TODAY"].push(n);
       } else if (n.time.includes("1d")) {
@@ -387,185 +477,143 @@ export function useAppStateInternal(): AppContextType {
     return groups;
   }, [filteredNotifications]);
 
-  // Action Functions
-  function notify(message: string) {
-    setToast(message);
-    window.setTimeout(() => setToast(""), 2400);
-  }
-
-  function updateState(updater: (draft: AppState) => void) {
-    setState((prev) => {
-      const next = JSON.parse(JSON.stringify(prev)) as AppState;
-      updater(next);
-      return next;
-    });
-  }
-
-  function switchRole(role: Role) {
-    updateState((draft) => {
-      const user = draft.users.find((item) => item.role === role);
-      if (user) draft.currentUserId = user.id;
-    });
-    notify(`Identity switched to ${role}.`);
-  }
-
-  function saveProfile() {
-    updateState((draft) => {
-      const user = draft.users.find((item) => item.id === draft.currentUserId);
-      if (!user) return;
-      user.name = profileDraft.name.trim() || user.name;
-      user.game = profileDraft.game;
-      user.rank = profileDraft.rank;
-      user.goal = profileDraft.goal;
-      user.trustScore = calculateTrustScore(user);
-    });
-    notify("Gamer profile saved. Trust Score recalculated.");
-  }
-
-  function publishPost() {
-    const content = postDraft.content.trim();
-    if (!content) return;
-    updateState((draft) => {
-      draft.posts.unshift({
-        id: `p${Date.now()}`,
-        authorId: draft.currentUserId,
-        type: postDraft.type,
-        content,
-        likes: 0,
-        comments: [],
-        sponsored: false,
-      });
-    });
-    setPostDraft({ content: "", type: "highlight" });
-    notify("Post published to the social feed.");
-  }
-
-  function buyCart(item: CartItem) {
-    updateState((draft) => {
-      draft.cart = item;
-    });
-    setView("checkout");
-    setCheckoutStep(1);
-    setLastPurchased(null);
-    notify(`${item.name} added to escrow checkout.`);
-  }
-
-  function completeCheckout() {
-    if (!state.cart) {
-      notify("Cart is empty.");
-      return;
-    }
-    setLastPurchased(state.cart);
-    updateState((draft) => {
-      if (!draft.cart) return;
-      const user = draft.users.find((item) => item.id === draft.currentUserId) ?? draft.users[0];
-      draft.transactions.push({
-        id: `t${Date.now()}`,
-        user: user.name,
-        item: draft.cart.name,
-        amount: draft.cart.price,
-        method: paymentMethod,
-        time: new Date().toLocaleString("en-US"),
-      });
-      if (draft.cart.id.includes("premium") || draft.cart.id.includes("creator")) {
-        user.premium = true;
-        user.trustScore = calculateTrustScore(user);
-      }
-      if (draft.cart.id === "shop-pin") {
-        draft.sponsors.push({ id: `s${Date.now()}`, shop: user.name, title: "New pinned shop placement", price: draft.cart.price, status: "Running" });
-      }
-      draft.cart = null;
-    });
-    setCheckoutStep(3);
-    notify("Payment complete. Revenue and admin dashboard updated.");
-  }
-
-  function markNotificationRead(id: string) {
-    updateState((draft) => {
-      const notif = draft.notifications.find((n) => n.id === id);
-      if (notif) notif.unread = false;
-    });
-    notify("Notification marked as read.");
-  }
-
-  function dismissNotification(id: string) {
-    updateState((draft) => {
-      draft.notifications = draft.notifications.filter((n) => n.id !== id);
-    });
-    notify("Notification dismissed.");
-  }
-
-  function markAllNotificationsRead() {
-    updateState((draft) => {
-      draft.notifications.forEach((n) => (n.unread = false));
-    });
-    notify("All notifications marked as read.");
-  }
-
-  function clearAllNotifications() {
-    updateState((draft) => {
-      draft.notifications = [];
-    });
-    notify("All notifications cleared.");
-  }
-
-  function likePost(postId: string) {
-    updateState((draft) => {
-      const p = draft.posts.find(item => item.id === postId);
-      if (p) {
-        p.likes += 1;
-      }
-    });
-    notify("Liked post successfully!");
-  }
-
-  function publishBroadcast() {
-    if (broadcastDraft.trim() === "") {
-      notify("Cannot broadcast empty message.");
-      return;
-    }
-    updateState((draft) => {
-      const newPost = {
-        id: `p${draft.posts.length + 100}`,
-        authorId: currentUser.id,
-        type: "trade",
-        content: broadcastDraft,
-        likes: 0,
-        comments: [],
-        sponsored: false,
-        game: currentUser.game,
-        authorName: currentUser.name,
-        clanTag: joinedClans.length > 0 ? (clans.find(c => c.id === joinedClans[0])?.tag || "") : "",
-        time: "Just now",
-      };
-      draft.posts.unshift(newPost);
-    });
-    setBroadcastDraft("");
-    notify("Broadcasted message successfully to the network!");
-  }
-
   return {
-    view, setView, state, setState, hydrated, toast, notify, updateState,
-    profileDraft, setProfileDraft, postDraft, setPostDraft, paymentMethod, setPaymentMethod,
-    showEditProfile, setShowEditProfile, checkoutStep, setCheckoutStep, lastPurchased, setLastPurchased,
-    selectedPayment, setSelectedPayment, cardNumber, setCardNumber, cardHolder, setCardHolder,
-    expiryDate, setExpiryDate, cvv, setCvv, agreedToTerms, setAgreedToTerms, showCvv, setShowCvv,
-    selectedClanId, setSelectedClanId, clanTierFilter, setClanTierFilter, clanRegionFilter, setClanRegionFilter,
-    joinedClans, setJoinedClans, communityTypeFilter, setCommunityTypeFilter, communitySortOrder, setCommunitySortOrder,
-    communitySearchQuery, setCommunitySearchQuery, broadcastDraft, setBroadcastDraft,
-    trustTab, setTrustTab, incidents, setIncidents, brokersList, setBrokersList,
-    tourTab, setTourTab, selectedTour, setSelectedTour, tournaments, setTournaments,
-    searchQuery, setSearchQuery, priceMin, setPriceMin, priceMax, setPriceMax, trustSort, setTrustSort,
-    gameFilter, setGameFilter, isLoggedIn, setIsLoggedIn, emailDraft, setEmailDraft,
-    passwordDraft, setPasswordDraft, rememberMe, setRememberMe, signupEmail, setSignupEmail,
-    signupPassword, setSignupPassword, signupConfirmPassword, setSignupConfirmPassword,
-    signupAccountName, setSignupAccountName, signupFullName, setSignupFullName, signupPhone, setSignupPhone,
-    signupCaptchaChecked, setSignupCaptchaChecked, signupAgreePolicy, setSignupAgreePolicy,
-    signupAgreeNews, setSignupAgreeNews, notifFilter, setNotifFilter, unreadOnly, setUnreadOnly,
-    currentUser, revenue, engagement, premiumUsers, matches, filteredNotifications, filteredClans,
-    activeClan, filteredPosts, filteredListings, groupedNotifs,
-    switchRole, saveProfile, publishPost, buyCart, completeCheckout, markNotificationRead,
-    dismissNotification, markAllNotificationsRead, clearAllNotifications, likePost, publishBroadcast
+    view: ui.view,
+    setView: ui.setView,
+    state: appState,
+    setState: () => {}, // Disabled in bridge, write mutations via updates
+    hydrated,
+    toast: ui.toast,
+    notify: ui.notify,
+    updateState: updateDbState,
+
+    profileDraft,
+    setProfileDraft,
+    postDraft,
+    setPostDraft,
+    paymentMethod: checkout.paymentMethod,
+    setPaymentMethod: checkout.setPaymentMethod,
+    showEditProfile,
+    setShowEditProfile,
+    checkoutStep: checkout.checkoutStep,
+    setCheckoutStep: checkout.setCheckoutStep,
+    lastPurchased: checkout.lastPurchased,
+    setLastPurchased: checkout.setLastPurchased,
+
+    selectedPayment: checkout.selectedPayment,
+    setSelectedPayment: checkout.setSelectedPayment,
+    cardNumber: checkout.cardNumber,
+    setCardNumber: checkout.setCardNumber,
+    cardHolder: checkout.cardHolder,
+    setCardHolder: checkout.setCardHolder,
+    expiryDate: checkout.expiryDate,
+    setExpiryDate: checkout.setExpiryDate,
+    cvv: checkout.cvv,
+    setCvv: checkout.setCvv,
+    agreedToTerms: checkout.agreedToTerms,
+    setAgreedToTerms: checkout.setAgreedToTerms,
+    showCvv: checkout.showCvv,
+    setShowCvv: checkout.setShowCvv,
+
+    selectedClanId: filters.selectedClanId,
+    setSelectedClanId: filters.setSelectedClanId,
+    clanTierFilter: filters.clanTierFilter,
+    setClanTierFilter: filters.setClanTierFilter,
+    clanRegionFilter: filters.clanRegionFilter,
+    setClanRegionFilter: filters.setClanRegionFilter,
+    joinedClans: filters.joinedClans,
+    setJoinedClans: (val: any) => filters.setJoinedClans(val),
+
+    communityTypeFilter: filters.communityTypeFilter,
+    setCommunityTypeFilter: filters.setCommunityTypeFilter,
+    communitySortOrder: filters.communitySortOrder,
+    setCommunitySortOrder: filters.setCommunitySortOrder,
+    communitySearchQuery: filters.communitySearchQuery,
+    setCommunitySearchQuery: filters.setCommunitySearchQuery,
+    broadcastDraft: filters.broadcastDraft,
+    setBroadcastDraft: filters.setBroadcastDraft,
+
+    trustTab: filters.trustTab,
+    setTrustTab: filters.setTrustTab,
+    incidents,
+    setIncidents,
+    brokersList,
+    setBrokersList,
+
+    notifFilter,
+    setNotifFilter,
+    unreadOnly,
+    setUnreadOnly,
+
+    tourTab: filters.tourTab,
+    setTourTab: filters.setTourTab,
+    selectedTour: filters.selectedTour,
+    setSelectedTour: filters.setSelectedTour,
+    tournaments,
+    setTournaments,
+
+    searchQuery: filters.searchQuery,
+    setSearchQuery: filters.setSearchQuery,
+    priceMin: filters.priceMin,
+    setPriceMin: filters.setPriceMin,
+    priceMax: filters.priceMax,
+    setPriceMax: filters.setPriceMax,
+    trustSort: filters.trustSort,
+    setTrustSort: filters.setTrustSort,
+    gameFilter: filters.gameFilter,
+    setGameFilter: filters.setGameFilter,
+
+    isLoggedIn: auth.isLoggedIn,
+    setIsLoggedIn: auth.setIsLoggedIn,
+    emailDraft,
+    setEmailDraft,
+    passwordDraft,
+    setPasswordDraft,
+    rememberMe,
+    setRememberMe,
+
+    signupEmail,
+    setSignupEmail,
+    signupPassword,
+    setSignupPassword,
+    signupConfirmPassword,
+    setSignupConfirmPassword,
+    signupAccountName,
+    setSignupAccountName,
+    signupFullName,
+    setSignupFullName,
+    signupPhone,
+    setSignupPhone,
+    signupCaptchaChecked,
+    setSignupCaptchaChecked,
+    signupAgreePolicy,
+    setSignupAgreePolicy,
+    signupAgreeNews,
+    setSignupAgreeNews,
+
+    currentUser,
+    revenue,
+    engagement,
+    premiumUsers,
+    matches,
+    filteredNotifications,
+    filteredClans,
+    activeClan,
+    filteredPosts,
+    filteredListings,
+    groupedNotifs,
+
+    switchRole,
+    saveProfile,
+    publishPost,
+    buyCart,
+    completeCheckout,
+    markNotificationRead: ui.markNotificationRead,
+    dismissNotification: ui.dismissNotification,
+    markAllNotificationsRead: ui.markAllNotificationsRead,
+    clearAllNotifications: ui.clearAllNotifications,
+    likePost,
+    publishBroadcast,
   };
 }
 
