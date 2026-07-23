@@ -1,10 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { mockApi } from "@/lib/api/adapters/mock";
+import { gameTrustApi } from "@/lib/api/gametrust";
+import { mapUser } from "@/lib/api/mappers";
+import type { Rank } from "@/lib/types";
 
 export function useUser() {
   return useQuery({
     queryKey: ["user", "me"],
-    queryFn: () => mockApi.auth.me(),
+    queryFn: async () => mapUser(await gameTrustApi.users.me()),
   });
 }
 
@@ -12,8 +14,25 @@ export function useUpdateProfile() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (draft: { name: string; game: string; rank: any; goal: string }) =>
-      mockApi.auth.updateProfile(draft),
+    mutationFn: async (draft: {
+      name: string;
+      game: string;
+      rank: Rank;
+      goal: string;
+    }) =>
+      mapUser(
+        await gameTrustApi.users.updateProfile({
+          fullName: draft.name,
+          gameProfile: {
+            mainGame: draft.game,
+            rank: draft.rank,
+            goal: draft.goal,
+            preferredRole: "Flex",
+            onlineTime: "Evening",
+            favoriteGames: [draft.game],
+          },
+        })
+      ),
     onSuccess: (data) => {
       queryClient.setQueryData(["user", "me"], data);
       queryClient.invalidateQueries({ queryKey: ["user"] });

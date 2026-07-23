@@ -20,12 +20,12 @@ export function CommunityView() {
     setCommunitySearchQuery,
     filteredPosts,
     likePost,
-    updateState,
     currentUser,
     notify,
     broadcastDraft,
     setBroadcastDraft,
     publishBroadcast,
+    commentPost,
   } = useAppState();
 
   const typeTabs = [
@@ -121,11 +121,7 @@ export function CommunityView() {
                 currentUser={currentUser}
                 onLike={() => likePost(post.id)}
                 onComment={(text) => {
-                  updateState((draft) => {
-                    const p = draft.posts.find((item) => item.id === post.id);
-                    if (p) p.comments.push(`${currentUser.name}: ${text}`);
-                  });
-                  notify("Comment successfully injected into node.");
+                  void commentPost(post.id, text);
                 }}
                 onShare={() => {
                   navigator.clipboard.writeText(post.content);

@@ -16,7 +16,7 @@ export function TournamentView() {
     setTourTab,
     notify,
     buyCart,
-    state,
+    registeredTournamentIds,
   } = useAppState();
 
   const activeTour = tournaments.find((t) => t.id === selectedTour) || tournaments[0];
@@ -62,7 +62,7 @@ export function TournamentView() {
 
           <div className="w-full flex flex-col gap-4 overflow-y-auto max-h-[700px] pr-2">
             {filteredTours.map((t) => {
-              const isRegistered = state.transactions.some((tx) => tx.item === `Slot: ${t.title}`);
+              const isRegistered = registeredTournamentIds.includes(t.id);
               return (
                 <TournamentCard
                   key={t.id}
@@ -83,13 +83,15 @@ export function TournamentView() {
               {/* Event Details Card */}
               <TournamentDetail
                 tournament={activeTour}
-                isRegistered={state.transactions.some((tx) => tx.item === `Slot: ${activeTour.title}`)}
+                isRegistered={registeredTournamentIds.includes(activeTour.id)}
                 onJoin={(t) =>
                   buyCart({
                     id: `tour-${t.id}`,
                     name: `Slot: ${t.title}`,
                     price: t.entryFee,
                     desc: `Entry slot fee for ${t.title}. 25% hosting fee included.`,
+                    kind: "tournament",
+                    referenceId: t.id,
                   })
                 }
                 onSpectate={() => notify("Connecting to spectating viewport feeds...")}

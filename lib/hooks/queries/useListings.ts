@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { mockApi } from "@/lib/api/adapters/mock";
+import { gameTrustApi } from "@/lib/api/gametrust";
+import { mapListing } from "@/lib/api/mappers";
 
 export function useListings() {
   return useQuery({
     queryKey: ["listings"],
-    queryFn: () => mockApi.listings.list(),
+    queryFn: async () => (await gameTrustApi.listings.list()).map(mapListing),
   });
 }

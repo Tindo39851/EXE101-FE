@@ -11,20 +11,18 @@ export function SignInView() {
     setPasswordDraft,
     rememberMe,
     setRememberMe,
-    setIsLoggedIn,
+    signIn,
+    isBusy,
     setView,
     notify,
-    currentUser,
   } = useAppState();
 
-  const handleSignIn = () => {
+  const handleSignIn = async () => {
     if (emailDraft.trim() === "" || passwordDraft.trim() === "") {
       notify("Error: Email and password fields are required.");
       return;
     }
-    setIsLoggedIn(true);
-    setView("overview");
-    notify(`Signed in successfully as ${currentUser.name}!`);
+    await signIn();
   };
 
   return (
@@ -82,10 +80,11 @@ export function SignInView() {
           {/* Sign In Trigger */}
           <Button
             variant="default"
-            onClick={handleSignIn}
+            onClick={() => void handleSignIn()}
+            disabled={isBusy}
             className="w-full text-[10px] font-black tracking-widest h-11 mt-4"
           >
-            SIGN IN ACCOUNT
+            {isBusy ? "AUTHENTICATING..." : "SIGN IN ACCOUNT"}
           </Button>
 
           {/* Switch to Sign Up */}
@@ -109,9 +108,7 @@ export function SignInView() {
           {/* Google Sign In */}
           <button
             onClick={() => {
-              setIsLoggedIn(true);
-              setView("overview");
-              notify("Logged in using Google identity system.");
+              notify("Google OAuth is not configured in the current MVP.");
             }}
             className="w-full h-11 bg-white hover:bg-slate-100 text-black text-[10px] font-black tracking-widest flex justify-center items-center gap-2.5 transition duration-300 border-none cursor-pointer uppercase"
           >
@@ -139,9 +136,7 @@ export function SignInView() {
           {/* Facebook Sign In */}
           <button
             onClick={() => {
-              setIsLoggedIn(true);
-              setView("overview");
-              notify("Logged in using Facebook identity system.");
+              notify("Facebook OAuth is not configured in the current MVP.");
             }}
             className="w-full h-11 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black tracking-widest flex justify-center items-center gap-2.5 transition duration-300 border-none cursor-pointer uppercase"
           >

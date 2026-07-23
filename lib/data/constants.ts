@@ -16,10 +16,10 @@ export const goals = [
 
 // ─── Currency Formatter ───────────────────────────────────────────────────────
 
-export const money = new Intl.NumberFormat("en-US", {
+export const money = new Intl.NumberFormat("vi-VN", {
   style: "currency",
-  currency: "USD",
-  maximumFractionDigits: 2,
+  currency: "VND",
+  maximumFractionDigits: 0,
 });
 
 // ─── Utility Functions ────────────────────────────────────────────────────────

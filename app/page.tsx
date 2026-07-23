@@ -47,7 +47,7 @@ function MainContent() {
     state,
     currentUser,
     isLoggedIn,
-    setIsLoggedIn,
+    logout,
     switchRole,
     notify,
     toast,
@@ -127,9 +127,7 @@ function MainContent() {
                   </span>
                   <span
                     onClick={() => {
-                      setIsLoggedIn(false);
-                      setView("signin");
-                      notify("Logged out from GAMETRUST.");
+                      logout();
                     }}
                     className="text-[7.5px] text-fuchsia-400 font-bold tracking-widest cursor-pointer hover:text-fuchsia-300 mt-1 leading-none transition-colors"
                   >
@@ -180,6 +178,7 @@ function MainContent() {
           <div className="flex items-center gap-3 shrink-0">
             <motion.button
               onClick={() => setView("notifications")}
+              aria-label="Open notifications"
               className="relative p-2 border border-cyan-400/15 hover:border-cyan-400/40 flex items-center justify-center cursor-pointer transition-colors"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -192,6 +191,7 @@ function MainContent() {
 
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
               className="lg:hidden p-2 border border-cyan-400/15 hover:border-cyan-400/40 flex items-center justify-center cursor-pointer text-cyan-300 transition-colors"
             >
               {mobileMenuOpen ? <X className="size-3.5" /> : <Menu className="size-3.5" />}
@@ -282,7 +282,6 @@ function MainContent() {
                   <option value="gamer" className="bg-slate-950">Gamer (B2C Buyer)</option>
                   <option value="creator" className="bg-slate-950">Creator (B2C Seller)</option>
                   <option value="shop" className="bg-slate-950">Shop Merchant (B2B)</option>
-                  <option value="admin" className="bg-slate-950">Escrow Security Admin</option>
                 </select>
 
                 <button

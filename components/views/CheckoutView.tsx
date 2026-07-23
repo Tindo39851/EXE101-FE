@@ -14,22 +14,9 @@ export function CheckoutView() {
     checkoutStep,
     setCheckoutStep,
     lastPurchased,
-    selectedPayment,
-    setSelectedPayment,
-    cardNumber,
-    setCardNumber,
-    cardHolder,
-    setCardHolder,
-    expiryDate,
-    setExpiryDate,
-    cvv,
-    setCvv,
-    agreedToTerms,
-    setAgreedToTerms,
-    showCvv,
-    setShowCvv,
     completeCheckout,
     setLastPurchased,
+    isBusy,
   } = useAppState();
 
   const activeCartItem = state.cart || lastPurchased;
@@ -76,23 +63,11 @@ export function CheckoutView() {
 
             {checkoutStep === 2 && state.cart && (
               <PaymentStep
-                selectedPayment={selectedPayment}
-                setSelectedPayment={setSelectedPayment}
-                cardNumber={cardNumber}
-                setCardNumber={setCardNumber}
-                cardHolder={cardHolder}
-                setCardHolder={setCardHolder}
-                expiryDate={expiryDate}
-                setExpiryDate={setExpiryDate}
-                cvv={cvv}
-                setCvv={setCvv}
-                agreedToTerms={agreedToTerms}
-                setAgreedToTerms={setAgreedToTerms}
-                showCvv={showCvv}
-                setShowCvv={setShowCvv}
                 price={state.cart.price}
+                isTournament={state.cart.kind === "tournament"}
+                isProcessing={isBusy}
                 onBack={() => setCheckoutStep(1)}
-                onComplete={completeCheckout}
+                onComplete={() => void completeCheckout()}
               />
             )}
 

@@ -14,7 +14,7 @@ export const listings: Listing[] = [
 ];
 
 export const plans: Plan[] = [
-  { id: "premium-gamer", name: "Premium Gamer", price: 49, desc: "Profile badge, priority team matching and trophy display.", buyerRoles: ["gamer", "creator"] as Role[] },
-  { id: "creator-boost", name: "Creator Boost", price: 79, desc: "Boost highlights on social feed and unlock engagement analytics.", buyerRoles: ["creator", "gamer"] as Role[] },
-  { id: "shop-pin", name: "Shop / Pinned Ad", price: 99, desc: "Pinned marketplace post for verified seller or game shop.", buyerRoles: ["shop", "admin"] as Role[] },
+  { id: "premium-gamer", name: "Premium Gamer", price: 49000, desc: "Profile badge, priority team matching and trophy display.", buyerRoles: ["gamer", "creator"] as Role[] },
+  { id: "creator-boost", name: "Creator Boost", price: 79000, desc: "Boost highlights on social feed and unlock engagement analytics.", buyerRoles: ["creator", "gamer"] as Role[] },
+  { id: "shop-pin", name: "Shop / Pinned Ad", price: 99000, desc: "Pinned marketplace post for verified seller or game shop.", buyerRoles: ["shop", "admin"] as Role[] },
 ];

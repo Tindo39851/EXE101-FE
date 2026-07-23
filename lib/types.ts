@@ -29,6 +29,8 @@ export type NotificationItem = {
 
 export type User = {
   id: string;
+  email?: string;
+  username?: string;
   role: Role;
   name: string;
   game: string;
@@ -74,6 +76,8 @@ export type CartItem = {
   name: string;
   price: number;
   desc: string;
+  kind?: "tournament" | "listing" | "premium" | "shop";
+  referenceId?: string;
 };
 
 export type Clan = {
@@ -90,6 +94,7 @@ export type Clan = {
   games: string[];
   requirement: string;
   status: "INVITE ONLY" | "OPEN";
+  joined?: boolean;
 };
 
 export type Listing = {
@@ -105,6 +110,7 @@ export type Listing = {
   trust: string;
   price: number;
   accent: string;
+  description?: string;
 };
 
 export type Plan = {
@@ -154,7 +160,7 @@ export type TournamentBracket = {
 
 export type Tournament = {
   id: string;
-  status: "LIVE" | "OPEN" | "UPCOMING";
+  status: "LIVE" | "OPEN" | "UPCOMING" | "COMPLETED" | "CANCELLED";
   mode: string;
   title: string;
   game: string;

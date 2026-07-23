@@ -1,4 +1,5 @@
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
+export const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
 
 export interface ApiError {
   message: string;
@@ -22,7 +23,7 @@ async function request<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const url = `${BASE_URL.replace(/\/$/, "")}/${path.replace(/^\//, "")}`;
+  const url = `${API_BASE_URL.replace(/\/$/, "")}/${path.replace(/^\//, "")}`;
 
   const headers = new Headers(options.headers);
   if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
@@ -40,6 +41,7 @@ async function request<T>(
   const response = await fetch(url, {
     ...options,
     headers,
+    cache: options.cache ?? "no-store",
   });
 
   if (!response.ok) {
@@ -71,14 +73,21 @@ export const apiClient = {
     request<T>(path, {
       ...options,
       method: "POST",
-      body: body ? JSON.stringify(body) : undefined,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
     }),
 
   put: <T>(path: string, body?: any, options?: RequestInit) =>
     request<T>(path, {
       ...options,
       method: "PUT",
-      body: body ? JSON.stringify(body) : undefined,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    }),
+
+  patch: <T>(path: string, body?: any, options?: RequestInit) =>
+    request<T>(path, {
+      ...options,
+      method: "PATCH",
+      body: body !== undefined ? JSON.stringify(body) : undefined,
     }),
 
   delete: <T>(path: string, options?: RequestInit) =>

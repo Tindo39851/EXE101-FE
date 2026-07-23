@@ -1,6 +1,5 @@
 import React from "react";
 import { useAppState } from "@/hooks/use-app-state";
-import { clans } from "@/lib/data/clans";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Tabs } from "@/components/ui/tabs";
 import { SectionLabel } from "@/components/shared/SectionLabel";
@@ -19,9 +18,11 @@ export function ClanView() {
     setSelectedClanId,
     activeClan,
     joinedClans,
-    setJoinedClans,
     currentUser,
     notify,
+    clans,
+    joinClan,
+    leaveClan,
   } = useAppState();
 
   const tierTabs = [
@@ -109,12 +110,10 @@ export function ClanView() {
                   notify("Join request failed: Your Trust Score is below the 7.5 threshold.");
                   return;
                 }
-                setJoinedClans((prev) => [...prev, activeClan.id]);
-                notify(`Applied to join ${activeClan.name} successfully!`);
+                void joinClan(activeClan.id);
               }}
               onLeave={() => {
-                setJoinedClans((prev) => prev.filter((id) => id !== activeClan.id));
-                notify(`Left clan [${activeClan.tag}] ${activeClan.name}.`);
+                void leaveClan(activeClan.id);
               }}
               onViewMembers={() => notify(`Viewing members of ${activeClan.name}...`)}
             />
