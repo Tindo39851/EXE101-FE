@@ -23,8 +23,8 @@ export function OrderSummary({ cart, lastPurchased }: OrderSummaryProps) {
   const soldCount = matchedListing?.sold || "12";
 
   const price = activeCartItem.price;
-  const fee = price * 0.025;
-  const total = price * 1.025;
+  const fee = activeCartItem.kind === "tournament" ? 0 : price * 0.025;
+  const total = price + fee;
 
   return (
     <div className="w-96 shrink-0 flex flex-col justify-start items-start font-mono select-none">
@@ -61,7 +61,9 @@ export function OrderSummary({ cart, lastPurchased }: OrderSummaryProps) {
           </div>
 
           <div className="py-2 border-b border-white/5 flex justify-between items-center text-xs">
-            <span className="text-slate-500 text-[9px] font-bold uppercase">ESCROW FEE (2.5%)</span>
+            <span className="text-slate-500 text-[9px] font-bold uppercase">
+              {activeCartItem.kind === "tournament" ? "TOURNAMENT SERVICE FEE" : "ESCROW FEE (2.5%)"}
+            </span>
             <span className="text-slate-200 font-bold">{money.format(fee)}</span>
           </div>
 

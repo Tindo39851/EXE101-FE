@@ -1,37 +1,50 @@
 export const ENDPOINTS = {
-  AUTH: {
-    SIGN_IN: "auth/signin",
-    SIGN_UP: "auth/signup",
+  auth: {
+    signIn: "auth/sign-in",
+    signUp: "auth/sign-up",
   },
-  USERS: {
-    ME: "users/me",
-    PROFILE: "users/profile",
+  users: {
+    me: "users/me",
+    profile: "users/me/profile",
+    matches: "users/matches",
   },
-  LISTINGS: {
-    LIST: "listings",
-    BUY: "listings/buy",
+  listings: {
+    list: "listings",
+    create: "listings",
+    mine: "listings/mine",
   },
-  TOURNAMENTS: {
-    LIST: "tournaments",
-    JOIN: "tournaments/join",
+  tournaments: {
+    list: "tournaments",
+    detail: (id: string) => `tournaments/${id}`,
+    create: "tournaments",
+    teams: (id: string) => `tournaments/${id}/teams`,
+    join: (id: string) => `tournaments/${id}/join`,
+    myRegistrations: "tournaments/registrations/me",
   },
-  CLANS: {
-    LIST: "clans",
-    JOIN: "clans/join",
+  clans: {
+    list: "clans",
+    detail: (id: string) => `clans/${id}`,
+    create: "clans",
+    join: (id: string) => `clans/${id}/join`,
+    leave: (id: string) => `clans/${id}/leave`,
   },
-  POSTS: {
-    LIST: "posts",
-    CREATE: "posts/create",
-    LIKE: "posts/like",
+  posts: {
+    list: "posts",
+    create: "posts",
+    like: (id: string) => `posts/${id}/like`,
+    comments: (id: string) => `posts/${id}/comments`,
   },
-  NOTIFICATIONS: {
-    LIST: "notifications",
-    READ: "notifications/read",
-    DISMISS: "notifications/dismiss",
-    READ_ALL: "notifications/read-all",
-    CLEAR_ALL: "notifications/clear-all",
+  notifications: {
+    list: "notifications",
+    read: (id: string) => `notifications/${id}/read`,
+    dismiss: (id: string) => `notifications/${id}`,
+    readAll: "notifications/read-all",
+    clearAll: "notifications",
   },
-  TRANSACTIONS: {
-    LIST: "transactions",
+  payments: {
+    create: "v1/payments/momo/create",
+    detail: (id: string) => `v1/payments/${id}`,
+    result: "v1/payments/momo/result",
+    simulate: (id: string) => `v1/payments/momo/simulator/${id}`,
   },
-};
+} as const;

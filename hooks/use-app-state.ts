@@ -1,35 +1,68 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import type { AppState, CartItem, Role, Rank, View, NotificationItem, Post, Sponsor, Transaction, User } from "@/lib/types";
-import { games, ranks, goals, money, calculateTrustScore } from "@/lib/data/constants";
-import { clans } from "@/lib/data/clans";
-import { listings } from "@/lib/data/listings";
-import { initialIncidents, initialBrokers } from "@/lib/data/incidents";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import type {
+  AppState,
+  CartItem,
+  Clan,
+  Listing,
+  NotificationItem,
+  Post,
+  Rank,
+  Role,
+  Tournament,
+  User,
+  View,
+} from "@/lib/types";
+import { games, goals } from "@/lib/data/constants";
+import { clans as fallbackClans } from "@/lib/data/clans";
+import { listings as fallbackListings } from "@/lib/data/listings";
 import { initialTournaments } from "@/lib/data/tournaments";
-
-// Import new Zustand stores
+import { initialIncidents, initialBrokers } from "@/lib/data/incidents";
+import { cloneSeed } from "@/lib/data/seed-state";
 import { useAuthStore } from "@/lib/stores/auth.store";
-import { useUIStore } from "@/lib/stores/ui.store";
 import { useCheckoutStore } from "@/lib/stores/checkout.store";
 import { useFiltersStore } from "@/lib/stores/filters.store";
-import { getMockDb, saveMockDb } from "@/lib/api/adapters/mock";
+import { useUIStore } from "@/lib/stores/ui.store";
+import { gameTrustApi } from "@/lib/api/gametrust";
+import {
+  mapClan,
+  mapListing,
+  mapMatch,
+  mapNotification,
+  mapPost,
+  mapTournament,
+  mapUser,
+} from "@/lib/api/mappers";
+import type {
+  ApiPostType,
+  AuthDto,
+  RegistrationDto,
+} from "@/lib/api/contracts";
 
-// Define the full context state interface
 export interface AppContextType {
-  // General State
   view: View;
   setView: (view: View) => void;
   state: AppState;
   setState: React.Dispatch<React.SetStateAction<AppState>>;
   hydrated: boolean;
+  isBusy: boolean;
   toast: string;
   notify: (msg: string) => void;
   updateState: (updater: (draft: AppState) => void) => void;
 
-  // Profile / Auth
   profileDraft: { name: string; game: string; rank: Rank; goal: string };
-  setProfileDraft: React.Dispatch<React.SetStateAction<{ name: string; game: string; rank: Rank; goal: string }>>;
+  setProfileDraft: React.Dispatch<
+    React.SetStateAction<{ name: string; game: string; rank: Rank; goal: string }>
+  >;
   postDraft: { content: string; type: string };
-  setPostDraft: React.Dispatch<React.SetStateAction<{ content: string; type: string }>>;
+  setPostDraft: React.Dispatch<
+    React.SetStateAction<{ content: string; type: string }>
+  >;
   paymentMethod: string;
   setPaymentMethod: (method: string) => void;
   showEditProfile: boolean;
@@ -43,150 +76,189 @@ export interface AppContextType {
   emailDraft: string;
   setEmailDraft: (email: string) => void;
   passwordDraft: string;
-  setPasswordDraft: (pw: string) => void;
+  setPasswordDraft: (password: string) => void;
   rememberMe: boolean;
-  setRememberMe: (rem: boolean) => void;
+  setRememberMe: (remember: boolean) => void;
 
-  // SignUp States
   signupEmail: string;
-  setSignupEmail: (val: string) => void;
+  setSignupEmail: (value: string) => void;
   signupPassword: string;
-  setSignupPassword: (val: string) => void;
+  setSignupPassword: (value: string) => void;
   signupConfirmPassword: string;
-  setSignupConfirmPassword: (val: string) => void;
+  setSignupConfirmPassword: (value: string) => void;
   signupAccountName: string;
-  setSignupAccountName: (val: string) => void;
+  setSignupAccountName: (value: string) => void;
   signupFullName: string;
-  setSignupFullName: (val: string) => void;
+  setSignupFullName: (value: string) => void;
   signupPhone: string;
-  setSignupPhone: (val: string) => void;
+  setSignupPhone: (value: string) => void;
   signupCaptchaChecked: boolean;
-  setSignupCaptchaChecked: (val: boolean) => void;
+  setSignupCaptchaChecked: (value: boolean) => void;
   signupAgreePolicy: boolean;
-  setSignupAgreePolicy: (val: boolean) => void;
+  setSignupAgreePolicy: (value: boolean) => void;
   signupAgreeNews: boolean;
-  setSignupAgreeNews: (val: boolean) => void;
+  setSignupAgreeNews: (value: boolean) => void;
 
-  // Checkout States
   selectedPayment: "card" | "crypto" | "escrow";
-  setSelectedPayment: (val: "card" | "crypto" | "escrow") => void;
+  setSelectedPayment: (value: "card" | "crypto" | "escrow") => void;
   cardNumber: string;
-  setCardNumber: (val: string) => void;
+  setCardNumber: (value: string) => void;
   cardHolder: string;
-  setCardHolder: (val: string) => void;
+  setCardHolder: (value: string) => void;
   expiryDate: string;
-  setExpiryDate: (val: string) => void;
+  setExpiryDate: (value: string) => void;
   cvv: string;
-  setCvv: (val: string) => void;
+  setCvv: (value: string) => void;
   agreedToTerms: boolean;
-  setAgreedToTerms: (val: boolean) => void;
+  setAgreedToTerms: (value: boolean) => void;
   showCvv: boolean;
-  setShowCvv: (val: boolean) => void;
+  setShowCvv: (value: boolean) => void;
 
-  // Clan States
+  clans: Clan[];
   selectedClanId: string;
-  setSelectedClanId: (val: string) => void;
+  setSelectedClanId: (value: string) => void;
   clanTierFilter: string;
-  setClanTierFilter: (val: string) => void;
+  setClanTierFilter: (value: string) => void;
   clanRegionFilter: string;
-  setClanRegionFilter: (val: string) => void;
+  setClanRegionFilter: (value: string) => void;
   joinedClans: string[];
   setJoinedClans: React.Dispatch<React.SetStateAction<string[]>>;
 
-  // Community States
   communityTypeFilter: string;
-  setCommunityTypeFilter: (val: string) => void;
+  setCommunityTypeFilter: (value: string) => void;
   communitySortOrder: string;
-  setCommunitySortOrder: (val: string) => void;
+  setCommunitySortOrder: (value: string) => void;
   communitySearchQuery: string;
-  setCommunitySearchQuery: (val: string) => void;
+  setCommunitySearchQuery: (value: string) => void;
   broadcastDraft: string;
-  setBroadcastDraft: (val: string) => void;
+  setBroadcastDraft: (value: string) => void;
 
-  // Admin / Trust States
   trustTab: string;
-  setTrustTab: (val: string) => void;
+  setTrustTab: (value: string) => void;
   incidents: any[];
   setIncidents: React.Dispatch<React.SetStateAction<any[]>>;
   brokersList: any[];
   setBrokersList: React.Dispatch<React.SetStateAction<any[]>>;
 
-  // Notifications Filter States
   notifFilter: string;
-  setNotifFilter: (val: string) => void;
+  setNotifFilter: (value: string) => void;
   unreadOnly: boolean;
-  setUnreadOnly: (val: boolean) => void;
+  setUnreadOnly: (value: boolean) => void;
 
-  // Tournaments States
   tourTab: string;
-  setTourTab: (val: string) => void;
+  setTourTab: (value: string) => void;
   selectedTour: string;
-  setSelectedTour: (val: string) => void;
-  tournaments: any[];
-  setTournaments: React.Dispatch<React.SetStateAction<any[]>>;
+  setSelectedTour: (value: string) => void;
+  tournaments: Tournament[];
+  setTournaments: React.Dispatch<React.SetStateAction<Tournament[]>>;
+  registeredTournamentIds: string[];
 
-  // Marketplace Search/Filters
+  listings: Listing[];
+  myListings: Listing[];
   searchQuery: string;
-  setSearchQuery: (val: string) => void;
+  setSearchQuery: (value: string) => void;
   priceMin: string;
-  setPriceMin: (val: string) => void;
+  setPriceMin: (value: string) => void;
   priceMax: string;
-  setPriceMax: (val: string) => void;
+  setPriceMax: (value: string) => void;
   trustSort: "none" | "desc" | "asc";
-  setTrustSort: (val: "none" | "desc" | "asc") => void;
+  setTrustSort: (value: "none" | "desc" | "asc") => void;
   gameFilter: string;
-  setGameFilter: (val: string) => void;
+  setGameFilter: (value: string) => void;
 
-  // Computed Values
   currentUser: User;
   revenue: number;
   engagement: number;
   premiumUsers: number;
-  matches: any[];
+  matches: Array<User & { matchScore: number }>;
   filteredNotifications: NotificationItem[];
-  filteredClans: any[];
-  activeClan: any;
+  filteredClans: Clan[];
+  activeClan?: Clan;
   filteredPosts: Post[];
-  filteredListings: any[];
+  filteredListings: Listing[];
   groupedNotifs: Record<string, NotificationItem[]>;
 
-  // Actions
-  switchRole: (role: Role) => void;
-  saveProfile: () => void;
-  publishPost: () => void;
+  signIn: () => Promise<void>;
+  signUp: () => Promise<void>;
+  logout: () => void;
+  switchRole: (role: Role) => Promise<void>;
+  saveProfile: () => Promise<void>;
+  publishPost: () => Promise<void>;
   buyCart: (item: CartItem) => void;
-  completeCheckout: () => void;
-  markNotificationRead: (id: string) => void;
-  dismissNotification: (id: string) => void;
-  markAllNotificationsRead: () => void;
-  clearAllNotifications: () => void;
-  likePost: (postId: string) => void;
-  publishBroadcast: () => void;
+  completeCheckout: () => Promise<void>;
+  joinClan: (id: string) => Promise<void>;
+  leaveClan: (id: string) => Promise<void>;
+  markNotificationRead: (id: string) => Promise<void>;
+  dismissNotification: (id: string) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
+  clearAllNotifications: () => Promise<void>;
+  likePost: (postId: string) => Promise<void>;
+  commentPost: (postId: string, content: string) => Promise<void>;
+  publishBroadcast: () => Promise<void>;
 }
 
-export const AppStateContext = createContext<AppContextType | undefined>(undefined);
+export const AppStateContext = createContext<AppContextType | undefined>(
+  undefined
+);
+
+const seedAccounts: Partial<Record<Role, string>> = {
+  gamer: "gamer@gametrust.dev",
+  creator: "creator@gametrust.dev",
+  shop: "seller@gametrust.dev",
+};
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Unexpected API error.";
+}
+
+function toPostType(value: string): ApiPostType {
+  const type = value.toUpperCase() as ApiPostType;
+  const allowed: ApiPostType[] = [
+    "TRADE",
+    "TOURNAMENT",
+    "ALERT",
+    "LISTING",
+    "RECRUIT",
+    "ACHIEVEMENT",
+    "HIGHLIGHT",
+  ];
+  return allowed.includes(type) ? type : "HIGHLIGHT";
+}
 
 export function useAppStateInternal(): AppContextType {
   const [hydrated, setHydrated] = useState(false);
-  const [dbState, setDbState] = useState<AppState>(() => getMockDb());
+  const [isBusy, setIsBusy] = useState(false);
+  const [dbState, setDbState] = useState<AppState>(() => cloneSeed());
+  const [clanItems, setClanItems] = useState<Clan[]>(fallbackClans);
+  const [listingItems, setListingItems] =
+    useState<Listing[]>(fallbackListings);
+  const [myListingItems, setMyListingItems] = useState<Listing[]>([]);
+  const [tournaments, setTournaments] =
+    useState<Tournament[]>(initialTournaments);
+  const [registrations, setRegistrations] = useState<RegistrationDto[]>([]);
+  const [matchItems, setMatchItems] = useState<
+    Array<User & { matchScore: number }>
+  >([]);
 
-  // Zustand Store mappings
   const auth = useAuthStore();
   const ui = useUIStore();
   const checkout = useCheckoutStore();
   const filters = useFiltersStore();
 
-  // Local draft states to preserve legacy form behaviors
-  const [profileDraft, setProfileDraft] = useState({ name: "", game: games[0], rank: "Diamond" as Rank, goal: goals[0] });
-  const [postDraft, setPostDraft] = useState({ content: "", type: "highlight" });
+  const [profileDraft, setProfileDraft] = useState({
+    name: "",
+    game: games[0],
+    rank: "Diamond" as Rank,
+    goal: goals[0],
+  });
+  const [postDraft, setPostDraft] = useState({
+    content: "",
+    type: "highlight",
+  });
   const [showEditProfile, setShowEditProfile] = useState(false);
-
-  // Authentication draft states
   const [emailDraft, setEmailDraft] = useState("");
   const [passwordDraft, setPasswordDraft] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
-
-  // SignUp draft states
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
@@ -196,297 +268,687 @@ export function useAppStateInternal(): AppContextType {
   const [signupCaptchaChecked, setSignupCaptchaChecked] = useState(false);
   const [signupAgreePolicy, setSignupAgreePolicy] = useState(false);
   const [signupAgreeNews, setSignupAgreeNews] = useState(false);
-
-  // Admin/Tournament mock lists sync'd to local mock db
   const [incidents, setIncidents] = useState(initialIncidents);
   const [brokersList, setBrokersList] = useState(initialBrokers);
-  const [tournaments, setTournaments] = useState(initialTournaments);
+  const [notifFilter, setNotifFilter] = useState("ALL");
+  const [unreadOnly, setUnreadOnly] = useState(false);
 
-  const [notifFilter, setNotifFilter] = useState<string>("ALL");
-  const [unreadOnly, setUnreadOnly] = useState<boolean>(false);
+  const currentUser = auth.getCurrentUser();
 
-  // Hydration sync
+  const loadPrivateData = async () => {
+    const [
+      notificationResult,
+      matchResult,
+      registrationResult,
+      myListingsResult,
+    ] =
+      await Promise.allSettled([
+        gameTrustApi.notifications.list(),
+        gameTrustApi.users.matches(),
+        gameTrustApi.tournaments.myRegistrations(),
+        gameTrustApi.listings.mine(),
+      ]);
+
+    if (notificationResult.status === "fulfilled") {
+      ui.setNotifications(notificationResult.value.map(mapNotification));
+    }
+    if (matchResult.status === "fulfilled") {
+      setMatchItems(matchResult.value.map(mapMatch));
+    }
+    if (registrationResult.status === "fulfilled") {
+      setRegistrations(registrationResult.value);
+    }
+    if (myListingsResult.status === "fulfilled") {
+      setMyListingItems(myListingsResult.value.map(mapListing));
+    }
+  };
+
+  const loadPublicData = async () => {
+    const [tournamentResult, clanResult, postResult, listingResult] =
+      await Promise.allSettled([
+        gameTrustApi.tournaments.list(),
+        gameTrustApi.clans.list(),
+        gameTrustApi.posts.list(),
+        gameTrustApi.listings.list(),
+      ]);
+
+    if (tournamentResult.status === "fulfilled") {
+      const mapped = tournamentResult.value.map(mapTournament);
+      setTournaments(mapped);
+      if (mapped.length) filters.setSelectedTour(mapped[0].id);
+    }
+    if (clanResult.status === "fulfilled") {
+      const mapped = clanResult.value.map(mapClan);
+      setClanItems(mapped);
+      filters.setJoinedClans(
+        mapped.filter((clan) => clan.joined).map((clan) => clan.id)
+      );
+      if (mapped.length) filters.setSelectedClanId(mapped[0].id);
+    }
+    if (postResult.status === "fulfilled") {
+      setDbState((state) => ({
+        ...state,
+        posts: postResult.value.map(mapPost),
+      }));
+    }
+    if (listingResult.status === "fulfilled") {
+      setListingItems(listingResult.value.map(mapListing));
+    }
+
+    const failed = [
+      tournamentResult,
+      clanResult,
+      postResult,
+      listingResult,
+    ].some((result) => result.status === "rejected");
+    if (failed) {
+      ui.notify("Some live data could not be loaded. Showing cached demo data.");
+    }
+  };
+
   useEffect(() => {
-    setDbState(getMockDb());
-    setHydrated(true);
+    let active = true;
+
+    const bootstrap = async () => {
+      const token =
+        typeof window !== "undefined"
+          ? window.localStorage.getItem("gametrust-token")
+          : null;
+      if (token) {
+        try {
+          const user = mapUser(await gameTrustApi.users.me());
+          if (active) auth.setCurrentUser(user);
+        } catch {
+          if (active) auth.logout();
+        }
+      }
+
+      await loadPublicData();
+      if (useAuthStore.getState().isLoggedIn) {
+        await loadPrivateData();
+      }
+      if (active) setHydrated(true);
+    };
+
+    void bootstrap();
+    return () => {
+      active = false;
+    };
+    // Bootstrap is intentionally run once for the persisted browser session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Sync state between hook local db representation and Zustand
   useEffect(() => {
-    if (hydrated) {
-      const db = getMockDb();
-      auth.setUsers(db.users);
-      ui.setNotifications(db.notifications);
-    }
-  }, [hydrated]);
+    setProfileDraft({
+      name: currentUser.name,
+      game: currentUser.game,
+      rank: currentUser.rank,
+      goal: currentUser.goal,
+    });
+  }, [
+    currentUser.id,
+    currentUser.name,
+    currentUser.game,
+    currentUser.rank,
+    currentUser.goal,
+  ]);
 
-  // Sync profile draft when current user changes
-  const currentUser = auth.getCurrentUser();
-  useEffect(() => {
-    setProfileDraft({ name: currentUser.name, game: currentUser.game, rank: currentUser.rank, goal: currentUser.goal });
-  }, [currentUser]);
-
-  // Legacy AppState mapping
-  const appState: AppState = useMemo(() => {
-    return {
-      currentUserId: auth.currentUserId,
+  const appState: AppState = useMemo(
+    () => ({
+      currentUserId: currentUser.id,
       cart: checkout.cart,
       users: auth.users,
       posts: dbState.posts,
       sponsors: dbState.sponsors,
       transactions: dbState.transactions,
       notifications: ui.notifications,
-    };
-  }, [auth.currentUserId, checkout.cart, auth.users, dbState.posts, dbState.sponsors, dbState.transactions, ui.notifications]);
+    }),
+    [
+      currentUser.id,
+      checkout.cart,
+      auth.users,
+      dbState.posts,
+      dbState.sponsors,
+      dbState.transactions,
+      ui.notifications,
+    ]
+  );
 
-  // Actions wrapped to sync with mock DB + notify
   const updateDbState = (updater: (draft: AppState) => void) => {
-    const current = getMockDb();
-    const copy = JSON.parse(JSON.stringify(current)) as AppState;
-    updater(copy);
-    saveMockDb(copy);
-    setDbState(copy);
-  };
-
-  const switchRole = (role: Role) => {
-    auth.switchRole(role);
-    ui.notify(`Identity switched to ${role}.`);
-  };
-
-  const saveProfile = () => {
-    auth.saveProfile(profileDraft);
-    // Sync into local mock db file state
-    updateDbState((draft) => {
-      const user = draft.users.find((u) => u.id === draft.currentUserId);
-      if (user) {
-        user.name = profileDraft.name.trim() || user.name;
-        user.game = profileDraft.game;
-        user.rank = profileDraft.rank;
-        user.goal = profileDraft.goal;
-        user.trustScore = calculateTrustScore(user);
-      }
+    setDbState((state) => {
+      const copy = structuredClone(state);
+      updater(copy);
+      return copy;
     });
-    ui.notify("Gamer profile saved. Trust Score recalculated.");
   };
 
-  const publishPost = () => {
+  const applyAuth = async (authData: AuthDto) => {
+    const user = mapUser(authData.user);
+    auth.setSession(user, authData.token);
+    await Promise.all([loadPrivateData(), loadPublicData()]);
+    ui.setView("overview");
+    return user;
+  };
+
+  const signIn = async () => {
+    if (!emailDraft.trim() || !passwordDraft) {
+      ui.notify("Email and password are required.");
+      return;
+    }
+    setIsBusy(true);
+    try {
+      const user = await applyAuth(
+        await gameTrustApi.auth.signIn({
+          email: emailDraft.trim(),
+          password: passwordDraft,
+        })
+      );
+      setPasswordDraft("");
+      ui.notify(`Signed in successfully as ${user.name}.`);
+    } catch (error) {
+      ui.notify(errorMessage(error));
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const signUp = async () => {
+    setIsBusy(true);
+    try {
+      const user = await applyAuth(
+        await gameTrustApi.auth.signUp({
+          email: signupEmail.trim(),
+          password: signupPassword,
+          username: signupAccountName.trim(),
+          fullName: signupFullName.trim(),
+          role: "GAMER",
+          gameProfile: {
+            mainGame: "Arena of Valor",
+            rank: "Platinum",
+            goal: "Compete",
+            preferredRole: "Flex",
+            onlineTime: "Evening",
+          },
+        })
+      );
+      ui.notify(`Account ${user.username || user.name} registered successfully.`);
+    } catch (error) {
+      ui.notify(errorMessage(error));
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const logout = () => {
+    auth.logout();
+    ui.setNotifications([]);
+    setRegistrations([]);
+    setMatchItems([]);
+    setMyListingItems([]);
+    ui.setView("signin");
+    ui.notify("Signed out from GameTrust.");
+  };
+
+  const switchRole = async (role: Role) => {
+    const email = seedAccounts[role];
+    if (!email) {
+      ui.notify("Admin API is not part of the current MVP.");
+      return;
+    }
+    setIsBusy(true);
+    try {
+      const user = await applyAuth(
+        await gameTrustApi.auth.signIn({ email, password: "123456" })
+      );
+      ui.notify(`Active API identity switched to ${user.role}.`);
+    } catch (error) {
+      ui.notify(errorMessage(error));
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const saveProfile = async () => {
+    if (!auth.isLoggedIn) {
+      ui.setView("signin");
+      ui.notify("Sign in before updating your profile.");
+      return;
+    }
+    setIsBusy(true);
+    try {
+      const dto = await gameTrustApi.users.updateProfile({
+        fullName: profileDraft.name.trim(),
+        gameProfile: {
+          mainGame: profileDraft.game,
+          rank: profileDraft.rank,
+          goal: profileDraft.goal,
+          preferredRole: "Flex",
+          onlineTime: "Evening",
+          favoriteGames: [profileDraft.game],
+        },
+      });
+      auth.setCurrentUser(mapUser(dto));
+      ui.notify("Profile updated and trust score recalculated.");
+    } catch (error) {
+      ui.notify(errorMessage(error));
+      throw error;
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const publishPost = async () => {
     const content = postDraft.content.trim();
     if (!content) return;
-    updateDbState((draft) => {
-      draft.posts.unshift({
-        id: `p${Date.now()}`,
-        authorId: draft.currentUserId,
-        type: postDraft.type,
-        content,
-        likes: 0,
-        comments: [],
-        sponsored: false,
-      });
-    });
-    setPostDraft({ content: "", type: "highlight" });
-    ui.notify("Post published to the social feed.");
+    if (!auth.isLoggedIn) {
+      ui.setView("signin");
+      ui.notify("Sign in before publishing a post.");
+      return;
+    }
+    setIsBusy(true);
+    try {
+      const post = mapPost(
+        await gameTrustApi.posts.create({
+          type: toPostType(postDraft.type),
+          content,
+          game: currentUser.game,
+          clanTag: clanItems.find((clan) => clan.joined)?.tag,
+        })
+      );
+      setDbState((state) => ({ ...state, posts: [post, ...state.posts] }));
+      setPostDraft({ content: "", type: "highlight" });
+      ui.notify("Post published to the social feed.");
+    } catch (error) {
+      ui.notify(errorMessage(error));
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const publishBroadcast = async () => {
+    const content = filters.broadcastDraft.trim();
+    if (!content) {
+      ui.notify("Cannot publish an empty message.");
+      return;
+    }
+    if (!auth.isLoggedIn) {
+      ui.setView("signin");
+      ui.notify("Sign in before publishing a post.");
+      return;
+    }
+    setIsBusy(true);
+    try {
+      const post = mapPost(
+        await gameTrustApi.posts.create({
+          type: "HIGHLIGHT",
+          content,
+          game: currentUser.game,
+          clanTag: clanItems.find((clan) => clan.joined)?.tag,
+        })
+      );
+      setDbState((state) => ({ ...state, posts: [post, ...state.posts] }));
+      filters.setBroadcastDraft("");
+      ui.notify("Message published successfully.");
+    } catch (error) {
+      ui.notify(errorMessage(error));
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const likePost = async (postId: string) => {
+    if (!auth.isLoggedIn) {
+      ui.setView("signin");
+      ui.notify("Sign in before liking a post.");
+      return;
+    }
+    try {
+      const post = mapPost(await gameTrustApi.posts.like(postId));
+      setDbState((state) => ({
+        ...state,
+        posts: state.posts.map((item) => (item.id === post.id ? post : item)),
+      }));
+    } catch (error) {
+      ui.notify(errorMessage(error));
+    }
+  };
+
+  const commentPost = async (postId: string, content: string) => {
+    if (!content.trim()) return;
+    if (!auth.isLoggedIn) {
+      ui.setView("signin");
+      ui.notify("Sign in before commenting.");
+      return;
+    }
+    try {
+      const post = mapPost(
+        await gameTrustApi.posts.comment(postId, content.trim())
+      );
+      setDbState((state) => ({
+        ...state,
+        posts: state.posts.map((item) => (item.id === post.id ? post : item)),
+      }));
+      ui.notify("Comment added.");
+    } catch (error) {
+      ui.notify(errorMessage(error));
+    }
   };
 
   const buyCart = (item: CartItem) => {
+    if (!auth.isLoggedIn) {
+      ui.setView("signin");
+      ui.notify("Sign in before starting checkout.");
+      return;
+    }
     checkout.buyCart(item);
   };
 
-  const completeCheckout = () => {
-    checkout.completeCheckout((newTx) => {
-      updateDbState((draft) => {
-        draft.transactions.push(newTx);
-        const user = draft.users.find((u) => u.id === draft.currentUserId) || draft.users[0];
-        if (checkout.cart?.id.includes("premium") || checkout.cart?.id.includes("creator")) {
-          user.premium = true;
-          user.trustScore = calculateTrustScore(user);
-        }
-        if (checkout.cart?.id === "shop-pin") {
-          draft.sponsors.push({
-            id: `s${Date.now()}`,
-            shop: user.name,
-            title: "New pinned shop placement",
-            price: checkout.cart.price,
-            status: "Running",
-          });
-        }
-      });
-      ui.notify("Payment complete. Revenue and admin dashboard updated.");
-    });
-  };
-
-  const publishBroadcast = () => {
-    if (filters.broadcastDraft.trim() === "") {
-      ui.notify("Cannot broadcast empty message.");
+  const completeCheckout = async () => {
+    const cart = checkout.cart;
+    if (!cart) {
+      ui.notify("Cart is empty.");
       return;
     }
-    updateDbState((draft) => {
-      const newPost = {
-        id: `p${draft.posts.length + 100}`,
-        authorId: auth.currentUserId,
-        type: "trade",
-        content: filters.broadcastDraft,
-        likes: 0,
-        comments: [],
-        sponsored: false,
-        game: currentUser.game,
-        authorName: currentUser.name,
-        clanTag: filters.joinedClans.length > 0 ? (clans.find(c => c.id === filters.joinedClans[0])?.tag || "") : "",
-        time: "Just now",
-      };
-      draft.posts.unshift(newPost);
-    });
-    filters.setBroadcastDraft("");
-    ui.notify("Broadcasted message successfully to the network!");
+    if (!auth.isLoggedIn) {
+      ui.setView("signin");
+      ui.notify("Sign in before making a payment.");
+      return;
+    }
+
+    setIsBusy(true);
+    try {
+      if (cart.kind === "tournament") {
+        const registration = await gameTrustApi.tournaments.join(
+          cart.referenceId || cart.id.replace(/^tour-/, ""),
+          { teamName: `${currentUser.username || currentUser.name} Squad` }
+        );
+        setRegistrations((items) => [registration, ...items]);
+        if (registration.paymentUrl) {
+          window.location.assign(registration.paymentUrl);
+          return;
+        }
+        checkout.setLastPurchased(cart);
+        checkout.setCart(null);
+        checkout.setCheckoutStep(3);
+        ui.notify(`Tournament registration status: ${registration.status}.`);
+        return;
+      }
+
+      const purpose =
+        cart.kind === "premium"
+          ? "PREMIUM_PLAN"
+          : cart.kind === "shop"
+            ? "SHOP_PACKAGE"
+            : "MARKETPLACE_ORDER";
+      const payment = await gameTrustApi.payments.create({
+        purpose,
+        referenceId: cart.referenceId || cart.id,
+        amount: Math.round(cart.price * 1.025),
+        orderInfo: cart.name,
+      });
+      if (!payment.paymentUrl) {
+        throw new Error("MoMo did not return a payment URL.");
+      }
+      window.location.assign(payment.paymentUrl);
+    } catch (error) {
+      ui.notify(errorMessage(error));
+    } finally {
+      setIsBusy(false);
+    }
   };
 
-  const likePost = (postId: string) => {
-    updateDbState((draft) => {
-      const p = draft.posts.find((item) => item.id === postId);
-      if (p) p.likes += 1;
-    });
-    ui.notify("Liked post successfully!");
+  const joinClan = async (id: string) => {
+    if (!auth.isLoggedIn) {
+      ui.setView("signin");
+      ui.notify("Sign in before joining a clan.");
+      return;
+    }
+    setIsBusy(true);
+    try {
+      const updated = mapClan(await gameTrustApi.clans.join(id));
+      setClanItems((items) =>
+        items.map((item) => (item.id === id ? updated : item))
+      );
+      filters.setJoinedClans((ids) =>
+        ids.includes(id) ? ids : [...ids, id]
+      );
+      ui.notify(`Joined [${updated.tag}] ${updated.name}.`);
+    } catch (error) {
+      ui.notify(errorMessage(error));
+    } finally {
+      setIsBusy(false);
+    }
   };
 
-  // Computed Values
-  const revenue = useMemo(() => {
-    return dbState.transactions.reduce((sum, tx) => sum + tx.amount, 0);
-  }, [dbState.transactions]);
+  const leaveClan = async (id: string) => {
+    if (!auth.isLoggedIn) {
+      ui.setView("signin");
+      ui.notify("Sign in before leaving a clan.");
+      return;
+    }
+    setIsBusy(true);
+    try {
+      const updated = mapClan(await gameTrustApi.clans.leave(id));
+      setClanItems((items) =>
+        items.map((item) => (item.id === id ? updated : item))
+      );
+      filters.setJoinedClans((ids) => ids.filter((item) => item !== id));
+      ui.notify(`Left [${updated.tag}] ${updated.name}.`);
+    } catch (error) {
+      ui.notify(errorMessage(error));
+    } finally {
+      setIsBusy(false);
+    }
+  };
 
-  const engagement = useMemo(() => {
-    return dbState.posts.reduce((sum, post) => sum + post.likes + post.comments.length, 0);
-  }, [dbState.posts]);
+  const markNotificationRead = async (id: string) => {
+    try {
+      await gameTrustApi.notifications.markRead(id);
+      ui.setNotifications(
+        ui.notifications.map((item) =>
+          item.id === id ? { ...item, unread: false } : item
+        )
+      );
+    } catch (error) {
+      ui.notify(errorMessage(error));
+    }
+  };
 
-  const premiumUsers = useMemo(() => {
-    return auth.users.filter((user) => user.premium).length;
-  }, [auth.users]);
+  const dismissNotification = async (id: string) => {
+    try {
+      await gameTrustApi.notifications.dismiss(id);
+      ui.setNotifications(ui.notifications.filter((item) => item.id !== id));
+    } catch (error) {
+      ui.notify(errorMessage(error));
+    }
+  };
 
-  const matches = useMemo(() => {
-    return auth.users
-      .filter((candidate) => candidate.id !== currentUser.id && candidate.role !== "admin")
-      .map((candidate) => {
-        let score = 35;
-        if (candidate.game === currentUser.game) score += 30;
-        if (candidate.rank === currentUser.rank) score += 20;
-        if (candidate.goal === currentUser.goal) score += 15;
-        if (candidate.premium) score += 5;
-        return { ...candidate, matchScore: Math.min(100, score) };
-      })
-      .sort((a, b) => b.matchScore - a.matchScore);
-  }, [currentUser, auth.users]);
+  const markAllNotificationsRead = async () => {
+    try {
+      await gameTrustApi.notifications.markAllRead();
+      ui.setNotifications(
+        ui.notifications.map((item) => ({ ...item, unread: false }))
+      );
+      ui.notify("All notifications marked as read.");
+    } catch (error) {
+      ui.notify(errorMessage(error));
+    }
+  };
+
+  const clearAllNotifications = async () => {
+    try {
+      await gameTrustApi.notifications.clearAll();
+      ui.setNotifications([]);
+      ui.notify("All notifications cleared.");
+    } catch (error) {
+      ui.notify(errorMessage(error));
+    }
+  };
 
   const filteredNotifications = useMemo(() => {
-    let list = ui.notifications;
+    let items = ui.notifications;
     if (notifFilter !== "ALL") {
-      list = list.filter((n) => n.type.toUpperCase() === notifFilter);
+      items = items.filter(
+        (notification) =>
+          notification.type.toUpperCase() === notifFilter.toUpperCase()
+      );
     }
-    if (unreadOnly) {
-      list = list.filter((n) => n.unread);
-    }
-    return list;
+    return unreadOnly
+      ? items.filter((notification) => notification.unread)
+      : items;
   }, [ui.notifications, notifFilter, unreadOnly]);
 
-  const filteredClans = useMemo(() => {
-    return clans.filter((c) => {
-      const matchTier = filters.clanTierFilter === "ALL" || c.tier === filters.clanTierFilter;
-      const matchRegion = filters.clanRegionFilter === "ALL" || c.region === filters.clanRegionFilter;
-      return matchTier && matchRegion;
-    });
-  }, [filters.clanTierFilter, filters.clanRegionFilter]);
+  const filteredClans = useMemo(
+    () =>
+      clanItems.filter(
+        (clan) =>
+          (filters.clanTierFilter === "ALL" ||
+            clan.tier === filters.clanTierFilter) &&
+          (filters.clanRegionFilter === "ALL" ||
+            clan.region === filters.clanRegionFilter)
+      ),
+    [clanItems, filters.clanTierFilter, filters.clanRegionFilter]
+  );
 
-  const activeClan = useMemo(() => {
-    return clans.find((c) => c.id === filters.selectedClanId) || clans[0];
-  }, [filters.selectedClanId]);
+  const activeClan = useMemo(
+    () =>
+      clanItems.find((clan) => clan.id === filters.selectedClanId) ||
+      clanItems[0],
+    [clanItems, filters.selectedClanId]
+  );
 
   const filteredPosts = useMemo(() => {
-    let list = [...dbState.posts];
-    if (filters.communitySearchQuery.trim() !== "") {
-      const q = filters.communitySearchQuery.toLowerCase();
-      list = list.filter(
+    let items = [...dbState.posts];
+    const search = filters.communitySearchQuery.trim().toLowerCase();
+    if (search) {
+      items = items.filter(
         (post) =>
-          post.content.toLowerCase().includes(q) ||
-          (post.authorName || "").toLowerCase().includes(q) ||
-          (post.game || "").toLowerCase().includes(q)
+          post.content.toLowerCase().includes(search) ||
+          post.authorName?.toLowerCase().includes(search) ||
+          post.game?.toLowerCase().includes(search)
       );
     }
     if (filters.communityTypeFilter !== "ALL") {
-      list = list.filter((post) => post.type.toUpperCase() === filters.communityTypeFilter.toUpperCase());
-    }
-    if (filters.communitySortOrder === "RECENT") {
-      list.sort((a, b) => {
-        const numA = parseInt(a.id.replace("p", "")) || 0;
-        const numB = parseInt(b.id.replace("p", "")) || 0;
-        return numA - numB;
-      });
-    } else {
-      list.sort((a, b) => b.likes - a.likes);
-    }
-    return list;
-  }, [dbState.posts, filters.communitySearchQuery, filters.communityTypeFilter, filters.communitySortOrder]);
-
-  const filteredListings = useMemo(() => {
-    let list = [...listings];
-    if (filters.gameFilter !== "ALL") {
-      list = list.filter((item) => item.title.toLowerCase() === filters.gameFilter.toLowerCase());
-    }
-    if (filters.searchQuery.trim()) {
-      const query = filters.searchQuery.toLowerCase();
-      list = list.filter((item) =>
-        item.title.toLowerCase().includes(query) ||
-        item.server.toLowerCase().includes(query) ||
-        item.badge.toLowerCase().includes(query)
+      items = items.filter(
+        (post) =>
+          post.type.toUpperCase() ===
+          filters.communityTypeFilter.toUpperCase()
       );
     }
-    if (filters.priceMin.trim()) {
-      const min = parseFloat(filters.priceMin);
-      if (!isNaN(min)) {
-        list = list.filter((item) => item.price >= min);
-      }
+    if (filters.communitySortOrder === "TOP") {
+      items.sort((a, b) => b.likes - a.likes);
     }
-    if (filters.priceMax.trim()) {
-      const max = parseFloat(filters.priceMax);
-      if (!isNaN(max)) {
-        list = list.filter((item) => item.price <= max);
-      }
+    return items;
+  }, [
+    dbState.posts,
+    filters.communitySearchQuery,
+    filters.communityTypeFilter,
+    filters.communitySortOrder,
+  ]);
+
+  const filteredListings = useMemo(() => {
+    let items = [...listingItems];
+    if (filters.gameFilter !== "ALL") {
+      items = items.filter(
+        (listing) =>
+          listing.title.toLowerCase() === filters.gameFilter.toLowerCase()
+      );
     }
-    if (filters.trustSort === "desc") {
-      list.sort((a, b) => parseFloat(b.trust) - parseFloat(a.trust));
-    } else if (filters.trustSort === "asc") {
-      list.sort((a, b) => parseFloat(a.trust) - parseFloat(b.trust));
+    const search = filters.searchQuery.trim().toLowerCase();
+    if (search) {
+      items = items.filter(
+        (listing) =>
+          listing.title.toLowerCase().includes(search) ||
+          listing.server.toLowerCase().includes(search) ||
+          listing.badge.toLowerCase().includes(search)
+      );
     }
-    return list;
-  }, [filters.gameFilter, filters.searchQuery, filters.priceMin, filters.priceMax, filters.trustSort]);
+    const min = Number(filters.priceMin);
+    const max = Number(filters.priceMax);
+    if (filters.priceMin && Number.isFinite(min)) {
+      items = items.filter((listing) => listing.price >= min);
+    }
+    if (filters.priceMax && Number.isFinite(max)) {
+      items = items.filter((listing) => listing.price <= max);
+    }
+    if (filters.trustSort !== "none") {
+      items.sort((a, b) =>
+        filters.trustSort === "desc"
+          ? parseFloat(b.trust) - parseFloat(a.trust)
+          : parseFloat(a.trust) - parseFloat(b.trust)
+      );
+    }
+    return items;
+  }, [
+    listingItems,
+    filters.gameFilter,
+    filters.searchQuery,
+    filters.priceMin,
+    filters.priceMax,
+    filters.trustSort,
+  ]);
 
   const groupedNotifs = useMemo(() => {
     const groups: Record<string, NotificationItem[]> = {
-      "TODAY": [],
-      "YESTERDAY": [],
+      TODAY: [],
+      YESTERDAY: [],
       "2 DAYS AGO": [],
       "3 DAYS AGO": [],
     };
-    filteredNotifications.forEach((n) => {
-      if (n.time.includes("m") || n.time.includes("h")) {
-        groups["TODAY"].push(n);
-      } else if (n.time.includes("1d")) {
-        groups["YESTERDAY"].push(n);
-      } else if (n.time.includes("2d")) {
-        groups["2 DAYS AGO"].push(n);
+    filteredNotifications.forEach((notification) => {
+      if (
+        notification.time.includes("m") ||
+        notification.time.includes("h") ||
+        notification.time === "Just now"
+      ) {
+        groups.TODAY.push(notification);
+      } else if (notification.time.includes("1d")) {
+        groups.YESTERDAY.push(notification);
+      } else if (notification.time.includes("2d")) {
+        groups["2 DAYS AGO"].push(notification);
       } else {
-        groups["3 DAYS AGO"].push(n);
+        groups["3 DAYS AGO"].push(notification);
       }
     });
     return groups;
   }, [filteredNotifications]);
 
+  const registeredTournamentIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          registrations
+            .filter((item) =>
+              ["PENDING_PAYMENT", "REGISTERED", "WAITLISTED"].includes(
+                item.status
+              )
+            )
+            .map((item) => item.tournamentId)
+        )
+      ),
+    [registrations]
+  );
+
+  const revenue = dbState.transactions.reduce(
+    (sum, transaction) => sum + transaction.amount,
+    0
+  );
+  const engagement = dbState.posts.reduce(
+    (sum, post) => sum + post.likes + post.comments.length,
+    0
+  );
+  const premiumUsers = auth.users.filter((user) => user.premium).length;
+
   return {
     view: ui.view,
     setView: ui.setView,
     state: appState,
-    setState: () => {}, // Disabled in bridge, write mutations via updates
+    setState: setDbState,
     hydrated,
+    isBusy,
     toast: ui.toast,
     notify: ui.notify,
     updateState: updateDbState,
-
     profileDraft,
     setProfileDraft,
     postDraft,
@@ -499,70 +961,6 @@ export function useAppStateInternal(): AppContextType {
     setCheckoutStep: checkout.setCheckoutStep,
     lastPurchased: checkout.lastPurchased,
     setLastPurchased: checkout.setLastPurchased,
-
-    selectedPayment: checkout.selectedPayment,
-    setSelectedPayment: checkout.setSelectedPayment,
-    cardNumber: checkout.cardNumber,
-    setCardNumber: checkout.setCardNumber,
-    cardHolder: checkout.cardHolder,
-    setCardHolder: checkout.setCardHolder,
-    expiryDate: checkout.expiryDate,
-    setExpiryDate: checkout.setExpiryDate,
-    cvv: checkout.cvv,
-    setCvv: checkout.setCvv,
-    agreedToTerms: checkout.agreedToTerms,
-    setAgreedToTerms: checkout.setAgreedToTerms,
-    showCvv: checkout.showCvv,
-    setShowCvv: checkout.setShowCvv,
-
-    selectedClanId: filters.selectedClanId,
-    setSelectedClanId: filters.setSelectedClanId,
-    clanTierFilter: filters.clanTierFilter,
-    setClanTierFilter: filters.setClanTierFilter,
-    clanRegionFilter: filters.clanRegionFilter,
-    setClanRegionFilter: filters.setClanRegionFilter,
-    joinedClans: filters.joinedClans,
-    setJoinedClans: (val: any) => filters.setJoinedClans(val),
-
-    communityTypeFilter: filters.communityTypeFilter,
-    setCommunityTypeFilter: filters.setCommunityTypeFilter,
-    communitySortOrder: filters.communitySortOrder,
-    setCommunitySortOrder: filters.setCommunitySortOrder,
-    communitySearchQuery: filters.communitySearchQuery,
-    setCommunitySearchQuery: filters.setCommunitySearchQuery,
-    broadcastDraft: filters.broadcastDraft,
-    setBroadcastDraft: filters.setBroadcastDraft,
-
-    trustTab: filters.trustTab,
-    setTrustTab: filters.setTrustTab,
-    incidents,
-    setIncidents,
-    brokersList,
-    setBrokersList,
-
-    notifFilter,
-    setNotifFilter,
-    unreadOnly,
-    setUnreadOnly,
-
-    tourTab: filters.tourTab,
-    setTourTab: filters.setTourTab,
-    selectedTour: filters.selectedTour,
-    setSelectedTour: filters.setSelectedTour,
-    tournaments,
-    setTournaments,
-
-    searchQuery: filters.searchQuery,
-    setSearchQuery: filters.setSearchQuery,
-    priceMin: filters.priceMin,
-    setPriceMin: filters.setPriceMin,
-    priceMax: filters.priceMax,
-    setPriceMax: filters.setPriceMax,
-    trustSort: filters.trustSort,
-    setTrustSort: filters.setTrustSort,
-    gameFilter: filters.gameFilter,
-    setGameFilter: filters.setGameFilter,
-
     isLoggedIn: auth.isLoggedIn,
     setIsLoggedIn: auth.setIsLoggedIn,
     emailDraft,
@@ -571,7 +969,6 @@ export function useAppStateInternal(): AppContextType {
     setPasswordDraft,
     rememberMe,
     setRememberMe,
-
     signupEmail,
     setSignupEmail,
     signupPassword,
@@ -590,29 +987,95 @@ export function useAppStateInternal(): AppContextType {
     setSignupAgreePolicy,
     signupAgreeNews,
     setSignupAgreeNews,
-
+    selectedPayment: checkout.selectedPayment,
+    setSelectedPayment: checkout.setSelectedPayment,
+    cardNumber: checkout.cardNumber,
+    setCardNumber: checkout.setCardNumber,
+    cardHolder: checkout.cardHolder,
+    setCardHolder: checkout.setCardHolder,
+    expiryDate: checkout.expiryDate,
+    setExpiryDate: checkout.setExpiryDate,
+    cvv: checkout.cvv,
+    setCvv: checkout.setCvv,
+    agreedToTerms: checkout.agreedToTerms,
+    setAgreedToTerms: checkout.setAgreedToTerms,
+    showCvv: checkout.showCvv,
+    setShowCvv: checkout.setShowCvv,
+    clans: clanItems,
+    selectedClanId: filters.selectedClanId,
+    setSelectedClanId: filters.setSelectedClanId,
+    clanTierFilter: filters.clanTierFilter,
+    setClanTierFilter: filters.setClanTierFilter,
+    clanRegionFilter: filters.clanRegionFilter,
+    setClanRegionFilter: filters.setClanRegionFilter,
+    joinedClans: filters.joinedClans,
+    setJoinedClans: filters.setJoinedClans as React.Dispatch<
+      React.SetStateAction<string[]>
+    >,
+    communityTypeFilter: filters.communityTypeFilter,
+    setCommunityTypeFilter: filters.setCommunityTypeFilter,
+    communitySortOrder: filters.communitySortOrder,
+    setCommunitySortOrder: filters.setCommunitySortOrder,
+    communitySearchQuery: filters.communitySearchQuery,
+    setCommunitySearchQuery: filters.setCommunitySearchQuery,
+    broadcastDraft: filters.broadcastDraft,
+    setBroadcastDraft: filters.setBroadcastDraft,
+    trustTab: filters.trustTab,
+    setTrustTab: filters.setTrustTab,
+    incidents,
+    setIncidents,
+    brokersList,
+    setBrokersList,
+    notifFilter,
+    setNotifFilter,
+    unreadOnly,
+    setUnreadOnly,
+    tourTab: filters.tourTab,
+    setTourTab: filters.setTourTab,
+    selectedTour: filters.selectedTour,
+    setSelectedTour: filters.setSelectedTour,
+    tournaments,
+    setTournaments,
+    registeredTournamentIds,
+    listings: listingItems,
+    myListings: myListingItems,
+    searchQuery: filters.searchQuery,
+    setSearchQuery: filters.setSearchQuery,
+    priceMin: filters.priceMin,
+    setPriceMin: filters.setPriceMin,
+    priceMax: filters.priceMax,
+    setPriceMax: filters.setPriceMax,
+    trustSort: filters.trustSort,
+    setTrustSort: filters.setTrustSort,
+    gameFilter: filters.gameFilter,
+    setGameFilter: filters.setGameFilter,
     currentUser,
     revenue,
     engagement,
     premiumUsers,
-    matches,
+    matches: matchItems,
     filteredNotifications,
     filteredClans,
     activeClan,
     filteredPosts,
     filteredListings,
     groupedNotifs,
-
+    signIn,
+    signUp,
+    logout,
     switchRole,
     saveProfile,
     publishPost,
     buyCart,
     completeCheckout,
-    markNotificationRead: ui.markNotificationRead,
-    dismissNotification: ui.dismissNotification,
-    markAllNotificationsRead: ui.markAllNotificationsRead,
-    clearAllNotifications: ui.clearAllNotifications,
+    joinClan,
+    leaveClan,
+    markNotificationRead,
+    dismissNotification,
+    markAllNotificationsRead,
+    clearAllNotifications,
     likePost,
+    commentPost,
     publishBroadcast,
   };
 }

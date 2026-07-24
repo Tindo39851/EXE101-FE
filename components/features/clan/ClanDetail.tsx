@@ -80,7 +80,7 @@ export function ClanDetail({
         <div className="p-3 bg-black/60 border border-white/5 flex flex-col items-center">
           <span className="text-slate-500 text-[7.5px] font-bold uppercase">MEMBERS</span>
           <strong className="text-slate-200 text-xs font-bold mt-1.5">
-            {clan.members + (isJoined ? 1 : 0)}
+            {clan.members}
           </strong>
         </div>
         <div className="p-3 bg-black/60 border border-white/5 flex flex-col items-center">

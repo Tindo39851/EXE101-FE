@@ -23,13 +23,13 @@ export function SignUpView() {
     setSignupAgreePolicy,
     signupAgreeNews,
     setSignupAgreeNews,
-    updateState,
-    setIsLoggedIn,
+    signUp,
+    isBusy,
     setView,
     notify,
   } = useAppState();
 
-  const handleSignUp = () => {
+  const handleSignUp = async () => {
     if (signupEmail.trim() === "" || signupPassword.trim() === "" || signupAccountName.trim() === "" || signupFullName.trim() === "") {
       notify("Error: All fields marked with label are required.");
       return;
@@ -47,24 +47,11 @@ export function SignUpView() {
       return;
     }
 
-    const currentRegTime = Date.now();
-    updateState((draft) => {
-      draft.users.push({
-        id: `u_${currentRegTime}`,
-        name: signupAccountName,
-        role: "gamer",
-        game: "Valorant",
-        rank: "Platinum",
-        goal: "Compete",
-        premium: false,
-        trustScore: 85,
-      });
-      draft.currentUserId = `u_${currentRegTime}`;
-    });
-
-    setIsLoggedIn(true);
-    setView("overview");
-    notify(`Account ${signupAccountName} registered successfully!`);
+    if (signupPassword.length < 6) {
+      notify("Error: Password must contain at least 6 characters.");
+      return;
+    }
+    await signUp();
   };
 
   return (
@@ -189,10 +176,11 @@ export function SignUpView() {
           {/* Sign Up Button */}
           <Button
             variant="default"
-            onClick={handleSignUp}
+            onClick={() => void handleSignUp()}
+            disabled={isBusy}
             className="w-full text-[10px] font-black tracking-widest h-11 mt-4"
           >
-            CREATE NEW ACCOUNT
+            {isBusy ? "CREATING ACCOUNT..." : "CREATE NEW ACCOUNT"}
           </Button>
 
           {/* Sign In Link */}

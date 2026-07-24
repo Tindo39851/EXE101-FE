@@ -18,11 +18,14 @@ export function ProfileView() {
     profileDraft,
     setProfileDraft,
     saveProfile,
+    myListings,
+    isBusy,
   } = useAppState();
 
   const handleSave = () => {
-    saveProfile();
-    setShowEditProfile(false);
+    void saveProfile()
+      .then(() => setShowEditProfile(false))
+      .catch(() => undefined);
   };
 
   return (
@@ -160,8 +163,8 @@ export function ProfileView() {
               </div>
             </div>
 
-            <Button variant="default" onClick={handleSave} className="mt-2 text-[10px] font-black tracking-widest">
-              SAVE CONFIGURATION
+            <Button variant="default" disabled={isBusy} onClick={handleSave} className="mt-2 text-[10px] font-black tracking-widest">
+              {isBusy ? "SAVING..." : "SAVE CONFIGURATION"}
             </Button>
           </div>
         </div>
@@ -192,17 +195,18 @@ export function ProfileView() {
           <SectionLabel code="INV_01" label="ACTIVE ESCROW LISTINGS" color="cyan" />
           
           <div className="self-stretch pt-2 flex flex-col gap-3">
-            {[
-              { game: "FreeFire", rank: "Radiant", price: 249.00 },
-              { game: "Arena of Valor", rank: "Challenger", price: 374.00 }
-            ].map((inv, idx) => (
-              <div key={idx} className="px-4 py-3 bg-black/50 border border-cyan-400/15 flex justify-between items-center transition-colors hover:border-cyan-400/30">
+            {myListings.length === 0 ? (
+              <div className="px-4 py-8 text-center text-[10px] text-slate-500 border border-dashed border-cyan-400/15">
+                NO ACTIVE LISTINGS FOR THIS ACCOUNT
+              </div>
+            ) : myListings.map((inv) => (
+              <div key={inv.id} className="px-4 py-3 bg-black/50 border border-cyan-400/15 flex justify-between items-center transition-colors hover:border-cyan-400/30">
                 <div>
-                  <h4 className="text-slate-200 text-xs font-black uppercase tracking-wide">{inv.game}</h4>
-                  <p className="text-slate-550 text-[9px] font-semibold uppercase mt-0.5">{inv.rank}</p>
+                  <h4 className="text-slate-200 text-xs font-black uppercase tracking-wide">{inv.title}</h4>
+                  <p className="text-slate-550 text-[9px] font-semibold uppercase mt-0.5">{inv.badge}</p>
                 </div>
                 <div className="flex items-center gap-4">
-                  <span className="text-fuchsia-455 text-xs font-black">${inv.price.toFixed(2)}</span>
+                  <span className="text-fuchsia-455 text-xs font-black">{inv.price.toLocaleString("vi-VN")} ₫</span>
                   <Badge variant="cyan" className="text-[7.5px] px-1.5">LISTED</Badge>
                 </div>
               </div>

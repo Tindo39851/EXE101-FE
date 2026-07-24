@@ -1,6 +1,6 @@
 import React from "react";
 import { useAppState } from "@/hooks/use-app-state";
-import { plans, listings } from "@/lib/data/listings";
+import { plans } from "@/lib/data/listings";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SectionLabel } from "@/components/shared/SectionLabel";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -25,6 +25,7 @@ export function MarketView() {
     gameFilter,
     setGameFilter,
     filteredListings,
+    listings,
     currentUser,
     buyCart,
   } = useAppState();
@@ -94,6 +95,8 @@ export function MarketView() {
                     name: `${l.title} account (${l.badge})`,
                     price: l.price,
                     desc: `Secure escrow transfer, calculated trust score ${l.trust}, server ${l.server}.`,
+                    kind: "listing",
+                    referenceId: l.id,
                   })
                 }
               />
@@ -118,7 +121,7 @@ export function MarketView() {
                     key={plan.id}
                     plan={plan}
                     allowed={allowed}
-                    onSelect={(p) => buyCart({ id: p.id, name: p.name, price: p.price, desc: p.desc })}
+                    onSelect={(p) => buyCart({ id: p.id, name: p.name, price: p.price, desc: p.desc, kind: "premium", referenceId: p.id })}
                     accent="cyan"
                   />
                 );
@@ -139,7 +142,7 @@ export function MarketView() {
                     key={plan.id}
                     plan={plan}
                     allowed={allowed}
-                    onSelect={(p) => buyCart({ id: p.id, name: p.name, price: p.price, desc: p.desc })}
+                    onSelect={(p) => buyCart({ id: p.id, name: p.name, price: p.price, desc: p.desc, kind: "shop", referenceId: p.id })}
                     accent="fuchsia"
                   />
                 );
