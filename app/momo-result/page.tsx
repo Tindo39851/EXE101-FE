@@ -9,46 +9,39 @@ interface CallbackResponse {
   success?: boolean;
   message?: string;
   data?: {
-    RspCode?: string;
-    Message?: string;
+    status?: "PENDING" | "PAID" | "FAILED" | "CANCELLED" | "EXPIRED";
+    transactionRef?: string;
   };
 }
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api";
 
-export default function VnPayReturnPage() {
+export default function MoMoResultPage() {
   const [state, setState] = useState<PaymentState>("processing");
-  const [message, setMessage] = useState("Verifying transaction with VNPAY...");
+  const [message, setMessage] = useState("Verifying transaction with MoMo...");
   const [transactionRef, setTransactionRef] = useState("");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const responseCode = params.get("vnp_ResponseCode");
-    setTransactionRef(params.get("vnp_TxnRef") ?? "");
+    setTransactionRef(params.get("orderId") ?? "");
 
-    if (!params.has("vnp_SecureHash") || !params.has("vnp_TxnRef")) {
+    if (!params.has("signature") || !params.has("orderId") || !params.has("requestId")) {
       setState("failed");
-      setMessage("VNPAY callback data is incomplete.");
+      setMessage("MoMo callback data is incomplete.");
       return;
     }
 
     const verifyPayment = async () => {
       try {
         const response = await fetch(
-          `${API_BASE_URL}/payments/vnpay/return?${params.toString()}`,
+          `${API_BASE_URL}/v1/payments/momo/result?${params.toString()}`,
           { method: "GET", cache: "no-store" },
         );
         const body = (await response.json()) as CallbackResponse;
-        const verified =
-          response.ok &&
-          body.success === true &&
-          body.data?.RspCode === "00" &&
-          responseCode === "00";
+        const verified = response.ok && body.success === true && body.data?.status === "PAID";
 
         if (verified) {
-          const rawState = window.localStorage.getItem(
-            "gametrust-next-mvp-state",
-          );
+          const rawState = window.localStorage.getItem("gametrust-next-mvp-state");
           if (rawState) {
             try {
               const storedState = JSON.parse(rawState);
@@ -62,12 +55,16 @@ export default function VnPayReturnPage() {
             }
           }
           setState("success");
-          setMessage("Your payment has been verified successfully.");
+          setMessage("Your MoMo payment has been verified successfully.");
           return;
         }
 
         setState("failed");
-        setMessage(body.data?.Message ?? body.message ?? "The transaction was not completed.");
+        setMessage(
+          params.get("message") ??
+            body.message ??
+            "The MoMo transaction was not completed.",
+        );
       } catch {
         setState("failed");
         setMessage("Unable to reach the payment service. Please check the transaction again.");
@@ -101,7 +98,7 @@ export default function VnPayReturnPage() {
         <div className="mb-8 flex items-center gap-3 border-b border-white/10 pb-5">
           <ReceiptText className="size-5 text-cyan-300" aria-hidden="true" />
           <span className="font-mono text-xs font-bold tracking-widest text-cyan-300">
-            GAMETRUST / VNPAY
+            GAMETRUST / MOMO AIO
           </span>
         </div>
 

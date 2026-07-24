@@ -179,5 +179,12 @@ export const gameTrustApi = {
     }) => unwrap(apiClient.post<ApiResponse<PaymentDto>>(ENDPOINTS.payments.create, payload)),
     detail: (id: string) =>
       unwrap(apiClient.get<ApiResponse<PaymentDto>>(ENDPOINTS.payments.detail(id))),
+    simulate: (id: string, action: "SUCCESS" | "CANCEL") =>
+      unwrap(
+        apiClient.post<ApiResponse<PaymentDto>>(
+          ENDPOINTS.payments.simulate(id),
+          { action },
+        ),
+      ),
   },
 };

@@ -175,5 +175,6 @@ export interface PaymentDto {
   status: "PENDING" | "PAID" | "FAILED" | "CANCELLED" | "EXPIRED";
   provider: string;
   transactionRef: string;
+  requestId: string;
   paymentUrl: string;
 }

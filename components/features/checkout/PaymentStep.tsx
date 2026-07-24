@@ -24,7 +24,7 @@ export function PaymentStep({
   return (
     <div className="self-stretch flex flex-col justify-start items-start font-mono select-none w-full">
       <span className="text-slate-500 text-[9px] font-bold tracking-widest uppercase">
-        STEP 2 - VNPAY PAYMENT GATEWAY
+        STEP 2 - MOMO AIO PAYMENT GATEWAY
       </span>
 
       <div className="self-stretch mt-5 border border-cyan-400/35 bg-slate-950/85 p-6">
@@ -34,12 +34,12 @@ export function PaymentStep({
           </div>
           <div>
             <h3 className="text-sm font-black tracking-widest text-slate-100">
-              VNPAY SANDBOX
+              MOMO AIO SANDBOX
             </h3>
             <p className="mt-2 text-xs leading-5 text-slate-400 font-sans">
-              You will be redirected to VNPAY to select a bank, card, or QR
-              payment method. GameTrust never receives or stores banking
-              credentials.
+              You will be redirected to MoMo to pay with the MoMo wallet, a
+              linked bank account, card, or supported QR method. GameTrust
+              never receives or stores banking credentials.
             </p>
           </div>
         </div>
@@ -49,7 +49,7 @@ export function PaymentStep({
             <span className="block text-[8px] font-bold text-slate-500">
               PAYMENT PROVIDER
             </span>
-            <strong className="mt-1 block text-xs text-cyan-300">VNPAY</strong>
+            <strong className="mt-1 block text-xs text-cyan-300">MOMO AIO</strong>
           </div>
           <div className="bg-slate-950 px-4 py-3 text-right">
             <span className="block text-[8px] font-bold text-slate-500">
@@ -80,10 +80,10 @@ export function PaymentStep({
           className="flex-1 text-[10px] font-black tracking-widest"
         >
           {isProcessing ? (
-            "CREATING VNPAY TRANSACTION..."
+            "CREATING MOMO TRANSACTION..."
           ) : (
             <>
-              CONTINUE TO VNPAY
+              CONTINUE TO MOMO
               <ExternalLink className="ml-2 size-4" aria-hidden="true" />
             </>
           )}

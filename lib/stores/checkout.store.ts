@@ -59,7 +59,7 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
   cvv: "",
   agreedToTerms: false,
   showCvv: false,
-  paymentMethod: "VNPAY",
+  paymentMethod: "MOMO",
 
   setCart: (cart) => {
     set({ cart });
@@ -68,7 +68,7 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
   setLastPurchased: (lastPurchased) => set({ lastPurchased }),
   setCheckoutStep: (checkoutStep) => set({ checkoutStep }),
   setSelectedPayment: (val) => {
-    set({ selectedPayment: val, paymentMethod: "VNPAY" });
+    set({ selectedPayment: val, paymentMethod: "MOMO" });
   },
   setCardNumber: (cardNumber) => set({ cardNumber }),
   setCardHolder: (cardHolder) => set({ cardHolder }),

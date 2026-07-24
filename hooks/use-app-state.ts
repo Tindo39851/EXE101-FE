@@ -687,7 +687,7 @@ export function useAppStateInternal(): AppContextType {
         orderInfo: cart.name,
       });
       if (!payment.paymentUrl) {
-        throw new Error("VNPAY did not return a payment URL.");
+        throw new Error("MoMo did not return a payment URL.");
       }
       window.location.assign(payment.paymentUrl);
     } catch (error) {

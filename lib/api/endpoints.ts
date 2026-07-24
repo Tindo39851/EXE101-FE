@@ -42,8 +42,9 @@ export const ENDPOINTS = {
     clearAll: "notifications",
   },
   payments: {
-    create: "payments/vnpay/create",
-    detail: (id: string) => `payments/${id}`,
-    callback: "payments/vnpay/return",
+    create: "v1/payments/momo/create",
+    detail: (id: string) => `v1/payments/${id}`,
+    result: "v1/payments/momo/result",
+    simulate: (id: string) => `v1/payments/momo/simulator/${id}`,
   },
 } as const;
